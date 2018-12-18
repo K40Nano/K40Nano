@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-'''
+"""
 This script uses a stream to communicate with the K40 Laser Cutter.
 
 Copyright (C) 2017 Scorch www.scorchworks.com
@@ -18,7 +18,8 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-'''
+"""
+
 from __future__ import print_function
 
 import io
@@ -31,12 +32,12 @@ except ImportError:
     print("Unable to load pyusb/USB library. (Sending data to Laser will not work.)")
 
 
-#######################################################################
-#  The one wire CRC algorithm is derived from the OneWire.cpp Library
-#  The latest version of this library may be found at:
-#  http://www.pjrc.com/teensy/td_libs_OneWire.html
-#######################################################################
 def crc_8bit_onewire(line):
+    """
+    The one wire CRC algorithm is derived from the OneWire.cpp Library
+    The latest version of this library may be found at:
+    http://www.pjrc.com/teensy/td_libs_OneWire.html
+    """
     crc = 0
     for in_byte in line:
         for j in range(8):
@@ -79,29 +80,44 @@ class NanoStream(io.RawIOBase):
         return True
 
     def write(self, data):
+        """
+        Writes the data to the K40 device, encoding that data internally into packets, validates those packets
+        and performs the resends as needed..
+
+        :param data:
+        :return:
+        """
         if self.closed:
             raise ValueError("Stream is closed.")
+
         if isinstance(data, bytes):
-            data = list(data)
+            data = list(data)  # If the data was written properly as a bytes object we convert that to an int list.
+
         size = self.PACKET_SIZE
         for chunk in [data[i:i + size] for i in range(0, len(data), size)]:
             self.send_valid_packet(chunk)
 
     def flush(self):
+        """
+        Blocks while waiting for the K40 device to return TASK_COMPLETE to the check status.
+        :return:
+        """
         io.RawIOBase.flush(self)
         if self.closed:
             return
         while True:
             response = self.check_status()
-            if response == self.RESPONSE_OK:
-                time.sleep(0.01)
-                continue
-            elif response == self.RESPONSE_TASK_COMPLETE:
+            if response == self.RESPONSE_TASK_COMPLETE:
                 return
             elif response is None:
                 raise IOError()
+            time.sleep(0.01)  # Task was not complete, sleep the thread a little while.
 
     def close(self):
+        """
+        Close the stream.
+        :return:
+        """
         try:
             self.release_usb()
         except:
@@ -109,6 +125,14 @@ class NanoStream(io.RawIOBase):
         io.RawIOBase.close(self)
 
     def valid_packet(self, packet):
+        """
+        Taking an integer list of 0-30 bytes it adds the packet header and the crc to the packet.
+
+        This should not be called directly.
+
+        :param packet: list of integers.
+        :return:
+        """
         if len(packet) != self.PACKET_SIZE:
             # Packets that are not at least the packet size (30 bytes) are padded with 70s.
             packet.append([70] * (self.PACKET_SIZE - len(packet)))
@@ -117,6 +141,14 @@ class NanoStream(io.RawIOBase):
         return [166, 0] + packet + [166, crc]
 
     def send_valid_packet(self, packet):
+        """
+        Creates a valid packet and attempts to send it, resending on timeout and CRC error.
+
+        This should not be called directly.
+
+        :param packet: 0-30 bytes as int list.
+        :return:
+        """
         valid_packet = self.valid_packet(packet)
         timeout_count = 0
         error_count = 0
@@ -149,6 +181,10 @@ class NanoStream(io.RawIOBase):
             break  # Unknown/Unhandled response.
 
     def check_status(self):
+        """
+        Checks the status response after sending a HELLO, retrying as necessary.
+        :return: status response.
+        """
         timeout_count = 0
         while True:
             try:
@@ -161,6 +197,10 @@ class NanoStream(io.RawIOBase):
         return self.read_response()
 
     def read_response(self):
+        """
+        Reads the status response from the device, retrying as necessary.
+        :return: status response.
+        """
         read_count = 0
         while True:
             try:
@@ -193,6 +233,12 @@ class NanoStream(io.RawIOBase):
         self.device.write(self.WRITE_ADDRESS, packet, self.TIMEOUT)
 
     def initialize_device(self, verbose=False):
+        """
+        Attempts to initializes the K40 device.
+
+        :param
+        :return:
+        """
         try:
             self.release_usb()
         except:
