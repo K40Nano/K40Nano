@@ -53,12 +53,7 @@ class NanoStream(io.RawIOBase):
     def __init__(self):
         io.RawIOBase.__init__(self)
 
-        self.PACKET_SIZE = 32
-        self.EMPTY_PACKET = [166, 0, 70, 70, 70, 70, 70, 70,
-                             70, 70, 70, 70, 70, 70, 70, 70,
-                             70, 70, 70, 70, 70, 70, 70, 70,
-                             70, 70, 70, 70, 70, 70, 70, 70,
-                             166, 0]
+        self.PACKET_SIZE = 30
         self.MAX_ERRORS = 10
         self.MAX_TIMEOUTS = 10
         self.TIMEOUT = 200  # Time in milliseconds
@@ -114,26 +109,21 @@ class NanoStream(io.RawIOBase):
         io.RawIOBase.close(self)
 
     def valid_packet(self, packet):
-        if isinstance(packet, list):
-            if len(packet) == self.PACKET_SIZE:
-                packet.append(166)
-                packet.append(crc_8bit_onewire(packet))
-            if len(packet) == self.PACKET_SIZE + 2:
-                packet[32] = 166
-                packet[33] = crc_8bit_onewire(packet)
-        return packet
+        if len(packet) != self.PACKET_SIZE:
+            # Packets that are not at least the packet size (30 bytes) are padded with 70s.
+            packet.append([70] * (self.PACKET_SIZE - len(packet)))
+        # We append the header and the crc suffix.
+        crc = crc_8bit_onewire(packet)
+        return [166, 0] + packet + [166, crc]
 
     def send_valid_packet(self, packet):
-        size = self.PACKET_SIZE
-        if len(packet) < size:
-            packet = list(packet) + self.EMPTY_PACKET[len(packet):size]
-        crc_packet = self.valid_packet(packet)
+        valid_packet = self.valid_packet(packet)
         timeout_count = 0
         error_count = 0
         buffer_count = 0
         while True:
             try:
-                self.send_raw_packet(crc_packet)
+                self.send_raw_packet(valid_packet)
             except:
                 timeout_count += 1
                 if timeout_count > self.MAX_TIMEOUTS:
