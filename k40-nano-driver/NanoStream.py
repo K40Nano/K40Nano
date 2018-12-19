@@ -53,8 +53,10 @@ class NanoStream(io.RawIOBase):
 
     def __init__(self):
         io.RawIOBase.__init__(self)
-
         self.PACKET_SIZE = 30
+        self.buffer = []
+        self.position = 0
+
         self.MAX_ERRORS = 10
         self.MAX_TIMEOUTS = 10
         self.TIMEOUT = 200  # Time in milliseconds
@@ -94,8 +96,14 @@ class NanoStream(io.RawIOBase):
             data = list(data)  # If the data was written properly as a bytes object we convert that to an int list.
 
         size = self.PACKET_SIZE
-        for chunk in [data[i:i + size] for i in range(0, len(data), size)]:
+        data = self.buffer + data
+        chunks = [data[i:i + size] for i in range(0, len(data), size)]
+        for chunk in chunks[:-1]:
             self.send_valid_packet(chunk)
+        self.buffer = chunks[-1]
+        if len(self.buffer) == size:
+            self.send_valid_packet(self.buffer)
+            self.buffer = []
 
     def flush(self):
         """
@@ -105,6 +113,11 @@ class NanoStream(io.RawIOBase):
         io.RawIOBase.flush(self)
         if self.closed:
             return
+
+        self.send_valid_packet(self.buffer)  # Send non-completed packet.
+        self.buffer = []
+
+        # wait for task completion.
         while True:
             response = self.check_status()
             if response == self.RESPONSE_TASK_COMPLETE:
@@ -133,7 +146,7 @@ class NanoStream(io.RawIOBase):
         :param packet: list of integers.
         :return:
         """
-        if len(packet) != self.PACKET_SIZE:
+        if len(packet) < self.PACKET_SIZE:
             # Packets that are not at least the packet size (30 bytes) are padded with 70s.
             packet.append([70] * (self.PACKET_SIZE - len(packet)))
         # We append the header and the crc suffix.
@@ -288,9 +301,3 @@ class NanoStream(io.RawIOBase):
         if verbose:
             print("---------- ctrl_transfer ------------")
             print(ctrl_transfer)
-
-
-if __name__ == "__main__":
-    k40 = NanoStream()
-    k40.initialize_device(True)
-    k40.check_status()
