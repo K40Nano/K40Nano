@@ -71,4 +71,4 @@ if __name__ == "__main__":
     stream = NanoStream()
     stream.write(b'IPP')
     stream.flush()
-    stream.close()
+    #stream.close()

@@ -22,7 +22,6 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 from LaserM2 import *
 from NanoConnection import *
 
-
 class NanoController:
     def __init__(self, connect=None, board=None):
         self.connection = connect
@@ -39,6 +38,8 @@ class NanoController:
         self.Modal_AX = 0
         self.Modal_AY = 0
 
+        self.INIT = b'I'
+        self.END = b'S1P'
         self.RIGHT = b'B'  # ord("B")=66
         self.LEFT = b'T'  # ord("T")=84
         self.UP = b'L'  # ord("L")=76
@@ -101,17 +102,17 @@ class NanoController:
             self.update_position_to_modes()
             if laser_on != self.Modal_on:
                 if laser_on:
-                    self.connection.write(self.ON)
+                    self.connection.append(self.ON)
                 else:
-                    self.connection.write(self.OFF)
+                    self.connection.append(self.OFF)
                 self.Modal_on = laser_on
 
             if direction == self.ANGLE:
                 if angle_dirs[0] != self.Modal_AX:
-                    self.connection.write(angle_dirs[0])
+                    self.connection.append(angle_dirs[0])
                     self.Modal_AX = angle_dirs[0]
                 if angle_dirs[1] != self.Modal_AY:
-                    self.connection.write(angle_dirs[1])
+                    self.connection.append(angle_dirs[1])
                     self.Modal_AY = angle_dirs[1]
 
             self.Modal_dir = direction
@@ -124,13 +125,13 @@ class NanoController:
 
     def update_position_to_modes(self, laser_on=None):
         if self.Modal_dist > 0:
-            self.connection.write(bytes(bytearray(self.Modal_dir)))
-            self.connection.write(bytes(bytearray(self.make_distance_command(self.Modal_dist))))
+            self.connection.append(bytes(bytearray(self.Modal_dir)))
+            self.connection.append(bytes(bytearray(self.make_distance_command(self.Modal_dist))))
         if laser_on is not None and laser_on != self.Modal_on:
             if laser_on:
-                self.connection.write(self.ON)
+                self.connection.append(self.ON)
             else:
-                self.connection.write(self.OFF)
+                self.connection.append(self.OFF)
             self.Modal_on = laser_on
         self.Modal_dist = 0
 
@@ -139,26 +140,23 @@ class NanoController:
         if abs(dist_mils - round(dist_mils, 0)) > 0.000001:
             raise Exception('Distance values should be integer value (inches*1000)')
         DIST = 0.0
-        code = []
+        code = ""
         v122 = 255
         dist_milsA = int(dist_mils)
 
         for i in range(0, int(floor(dist_mils / v122))):
-            code.append(122)
+            code += chr(122)
             dist_milsA = dist_milsA - v122
             DIST = DIST + v122
         if dist_milsA == 0:
             pass
         elif dist_milsA < 26:  # codes  "a" through  "y"
-            code.append(96 + dist_milsA)
+            code += chr(96 + dist_milsA)
         elif dist_milsA < 52:  # codes "|a" through "|z"
-            code.append(124)
-            code.append(96 + dist_milsA - 25)
+            code += chr(124)
+            code += chr(96 + dist_milsA - 25)
         elif dist_milsA < 255:
-            num_str = "%03d" % (int(round(dist_milsA)))
-            code.append(ord(num_str[0]))
-            code.append(ord(num_str[1]))
-            code.append(ord(num_str[2]))
+            code += "%03d" % (int(round(dist_milsA)))
         else:
             raise Exception("Error in EGV make_distance_in(): dist_milsA=", dist_milsA)
         return code
@@ -262,10 +260,10 @@ class NanoController:
 
     def make_move_data(self, dx_mm, dy_mm):
         if (abs(dx_mm) + abs(dy_mm)) > 0:
-            self.connection.write(b'I')  # I
+            self.connection.append(self.INIT)  # I
             self.make_dir_dist(dx_mm, dy_mm)
             self.update_position_to_modes()
-            self.connection.write(b'S1P')  # S, 1, P
+            self.connection.append(self.END)  # S, 1, P
 
     def rapid_move_slow(self, dx, dy):
         self.make_dir_dist(dx, dy)
@@ -279,38 +277,85 @@ class NanoController:
         self.update_position_to_modes(laser_on=False)
 
         if dx + pad < 0.0:
-            self.connection.write(b'B')
+            self.connection.append(b'B')
         else:
-            self.connection.write(b'T')
-        self.connection.write(b'N')
+            self.connection.append(b'T')
+        self.connection.append(b'N')
         self.make_dir_dist(dx + pad, dy - pad)
         self.update_position_to_modes(laser_on=False)
-        self.connection.write(b'S')
-        self.connection.write(b'E')
+        self.connection.append(b'S')
+        self.connection.append(b'E')
 
     def change_speed(self, feed, board=None, laser_on=False):
         if board is None:
             board = self.board
         cspad = 5
         if laser_on:
-            self.connection.write(self.OFF)
+            self.connection.append(self.OFF)
 
         self.make_dir_dist(-cspad, -cspad)
         self.update_position_to_modes(laser_on=False)
 
-        self.connection.write(b'@NSE')
+        self.connection.append(b'@NSE')
         speed = board.make_speed(feed)
-        self.connection.write(bytes(speed, "UTF-8"))
-        self.connection.write(b'NRB')
+        self.connection.append(bytes(speed, "UTF-8"))
+        self.connection.append(b'NRB')
         ## Insert "SIE"
-        self.connection.write(b'S1E')
+        self.connection.append(b'S1E')
 
         self.make_dir_dist(cspad, cspad)
         self.update_position_to_modes(laser_on=False)
 
         if laser_on:
-            self.connection.write(self.ON)
+            self.connection.append(self.ON)
 
+    def move_position(self,dx=0, dy=0):
+        if dx == 0 and dy == 0:
+            return;
+        self.connection.append(self.INIT)
+        if dy != 0:
+            if dy > 0:
+                self.connection.append(self.DOWN)
+            else:
+                self.connection.append(self.UP)
+            self.connection.append(self.make_distance_command(abs(dy)))
+        if dx != 0:
+            if dx > 0:
+                self.connection.append(self.RIGHT)
+            else:
+                self.connection.append(self.LEFT)
+            self.connection.append(self.make_distance_command(abs(dx)))
+        self.connection.append(self.END)
+        self.connection.write_buffer()
+        
+    def move_down(self, distance=50):
+        self.connection.append(self.INIT)
+        self.connection.append(self.DOWN)
+        self.connection.append(self.make_distance_command(distance))
+        self.connection.append(self.END)
+        self.connection.write_buffer()
+        
+    def move_up(self, distance=50):
+        self.connection.append(self.INIT)
+        self.connection.append(self.UP)
+        self.connection.append(self.make_distance_command(distance))
+        self.connection.append(self.END)
+        self.connection.write_buffer()
+    
+    def move_right(self, distance=50):
+        self.connection.append(self.INIT)
+        self.connection.append(self.RIGHT)
+        self.connection.append(self.make_distance_command(distance))
+        self.connection.append(self.END)
+        self.connection.write_buffer()
+        
+    def move_left(self, distance=50):
+        self.connection.append(self.INIT)
+        self.connection.append(self.LEFT)
+        self.connection.append(self.make_distance_command(distance))
+        self.connection.append(self.END)
+        self.connection.write_buffer()
+        
     def release(self):
         self.connection.disconnect()
 
@@ -319,5 +364,5 @@ if __name__ == "__main__":
     controller = NanoController()
     controller.hello()
     controller.home_position()
-    controller.make_move_data(20, 20)
+    controller.move_position(5000,2000)
     controller.release()

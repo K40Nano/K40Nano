@@ -58,7 +58,10 @@ class MockUsb:
         return 206
 
     def do_mock_write(self, packet):
-        print(packet)
+        ps = ""
+        for p in packet:
+            ps += chr(p)
+        print(ps," ", packet)
 
 
 if __name__ == "__main__":
