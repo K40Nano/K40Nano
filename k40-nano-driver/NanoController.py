@@ -19,21 +19,19 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 """
 
-from math import *
-
 from LaserM2 import *
-from NanoStream import *
+from NanoConnection import *
 
 
 class NanoController:
-    def __init__(self, output_stream=None, board=None):
-        self.stream = output_stream
-        if self.stream is None:
-            self.stream = NanoStream()
+    def __init__(self, connect=None, board=None):
+        self.connection = connect
+        if self.connection is None:
+            self.connection = NanoConnection()
+        self.connection.connect()
         self.board = board
         if self.board is None:
             self.board = LaserM2()
-        self.stream = stream
 
         self.Modal_dir = 0
         self.Modal_dist = 0
@@ -48,6 +46,7 @@ class NanoController:
         self.ANGLE = b'M'  # ord("M")=77
         self.ON = b'D'  # ord("D")=68
         self.OFF = b'U'  # ord("U")=85
+
         self.proper_x = 0
         self.proper_y = 0
         self.proper_index = 0
@@ -61,16 +60,16 @@ class NanoController:
         # CUT_TYPE cutting/marking, Engraving=G followed by the raster step in thousandths of an inch
 
     def unlock_rail(self):
-        self.stream.write(b'IS2P')
-        self.stream.flush()
+        self.connection.send_valid_packet(b'IS2P')
 
     def e_stop(self):
-        self.stream.write(b'I')
-        self.stream.flush()
+        self.connection.send_valid_packet(b'I')
 
     def home_position(self):
-        self.stream.write(b'IPP')
-        self.stream.flush()
+        self.connection.send_valid_packet(b'IPP')
+
+    def hello(self):
+        self.connection.send_hello()
 
     def write_raw(self, data):
         """
@@ -81,7 +80,8 @@ class NanoController:
         :param data:
         :return:
         """
-        self.stream.write(data)
+        # Properly all the NanoUtility stuff must be turned into proper controller commands.
+        pass
 
     def rapid_move(self, dxmils, dymils):
         if dxmils != 0 or dymils != 0:
@@ -98,20 +98,20 @@ class NanoController:
             self.Modal_dist = self.Modal_dist + distance
 
         else:
-            self.flush()
+            self.update_position_to_modes()
             if laser_on != self.Modal_on:
                 if laser_on:
-                    self.stream.write(self.ON)
+                    self.connection.write(self.ON)
                 else:
-                    self.stream.write(self.OFF)
+                    self.connection.write(self.OFF)
                 self.Modal_on = laser_on
 
             if direction == self.ANGLE:
                 if angle_dirs[0] != self.Modal_AX:
-                    self.stream.write(angle_dirs[0])
+                    self.connection.write(angle_dirs[0])
                     self.Modal_AX = angle_dirs[0]
                 if angle_dirs[1] != self.Modal_AY:
-                    self.stream.write(angle_dirs[1])
+                    self.connection.write(angle_dirs[1])
                     self.Modal_AY = angle_dirs[1]
 
             self.Modal_dir = direction
@@ -122,19 +122,19 @@ class NanoController:
             if direction == self.UP or direction == self.DOWN:
                 self.Modal_AY = direction
 
-    def flush(self, laser_on=None):
+    def update_position_to_modes(self, laser_on=None):
         if self.Modal_dist > 0:
-            self.stream.write(bytes(bytearray(self.Modal_dir)))
-            self.stream.write(bytes(bytearray(self.make_distance(self.Modal_dist))))
+            self.connection.write(bytes(bytearray(self.Modal_dir)))
+            self.connection.write(bytes(bytearray(self.make_distance_command(self.Modal_dist))))
         if laser_on is not None and laser_on != self.Modal_on:
             if laser_on:
-                self.stream.write(self.ON)
+                self.connection.write(self.ON)
             else:
-                self.stream.write(self.OFF)
+                self.connection.write(self.OFF)
             self.Modal_on = laser_on
         self.Modal_dist = 0
 
-    def make_distance(self, dist_mils):
+    def make_distance_command(self, dist_mils):
         dist_mils = float(dist_mils)
         if abs(dist_mils - round(dist_mils, 0)) > 0.000001:
             raise Exception('Distance values should be integer value (inches*1000)')
@@ -260,12 +260,12 @@ class NanoController:
             if error > 0:
                 raise Exception("egv.py: Error delta =%f" % error)
 
-    def make_move_data(self, dxmils, dymils):
-        if (abs(dxmils) + abs(dymils)) > 0:
-            self.stream.write(b'I')  # I
-            self.make_dir_dist(dxmils, dymils)
-            self.flush()
-            self.stream.write(b'S1P')  # S, 1, P
+    def make_move_data(self, dx_mm, dy_mm):
+        if (abs(dx_mm) + abs(dy_mm)) > 0:
+            self.connection.write(b'I')  # I
+            self.make_dir_dist(dx_mm, dy_mm)
+            self.update_position_to_modes()
+            self.connection.write(b'S1P')  # S, 1, P
 
     def rapid_move_slow(self, dx, dy):
         self.make_dir_dist(dx, dy)
@@ -276,47 +276,48 @@ class NanoController:
             pad += 3
         self.make_dir_dist(-pad, 0)  # add "T" move
         self.make_dir_dist(0, pad)  # add "L" move
-        self.flush(laser_on=False)
+        self.update_position_to_modes(laser_on=False)
 
         if dx + pad < 0.0:
-            self.stream.write(b'B')
+            self.connection.write(b'B')
         else:
-            self.stream.write(b'T')
-        self.stream.write(b'N')
+            self.connection.write(b'T')
+        self.connection.write(b'N')
         self.make_dir_dist(dx + pad, dy - pad)
-        self.flush(laser_on=False)
-        self.stream.write(b'S')
-        self.stream.write(b'E')
+        self.update_position_to_modes(laser_on=False)
+        self.connection.write(b'S')
+        self.connection.write(b'E')
 
     def change_speed(self, feed, board=None, laser_on=False):
         if board is None:
             board = self.board
         cspad = 5
         if laser_on:
-            self.stream.write(self.OFF)
+            self.connection.write(self.OFF)
 
         self.make_dir_dist(-cspad, -cspad)
-        self.flush(laser_on=False)
+        self.update_position_to_modes(laser_on=False)
 
-        self.stream.write(b'@NSE')
+        self.connection.write(b'@NSE')
         speed = board.make_speed(feed)
-        self.stream.write(bytes(speed, "UTF-8"))
-        self.stream.write(b'NRB')
+        self.connection.write(bytes(speed, "UTF-8"))
+        self.connection.write(b'NRB')
         ## Insert "SIE"
-        self.stream.write(b'S1E')
+        self.connection.write(b'S1E')
 
         self.make_dir_dist(cspad, cspad)
-        self.flush(laser_on=False)
+        self.update_position_to_modes(laser_on=False)
 
         if laser_on:
-            self.stream.write(self.ON)
+            self.connection.write(self.ON)
+
+    def release(self):
+        self.connection.disconnect()
 
 
 if __name__ == "__main__":
-    stream = open("test.egv", "wb")
-    controller = NanoController(stream)
-    controller.unlock_rail()
-    controller.change_speed(20)
-    controller.rapid_move(200, 200)
+    controller = NanoController()
+    controller.hello()
     controller.home_position()
-    controller.make_cut_line(20, 20, True)
+    controller.make_move_data(20, 20)
+    controller.release()
