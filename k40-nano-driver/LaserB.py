@@ -40,9 +40,5 @@ if __name__ == "__main__":
     step = 0
     for value_in in values:
         print("% 8.2f" % value_in, ": ",)
-        val = board.make_speed(value_in, step=step)
-        txt = ""
-        for c in val:
-            txt += chr(c)
-        print(txt)
+        print(board.make_speed(value_in, step=step))
     print("DONE")

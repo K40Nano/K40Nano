@@ -128,19 +128,17 @@ class NanoConnection:
     def wait_finished(self):
         timeout_count = 0
         buffer_count = 0
+        error_count = 0
         while True:
             try:
-                print("hello")
                 self.send_hello()
             except Exception:
                 timeout_count += 1
                 if timeout_count >= self.MAX_TIMEOUTS:
-                    print("Timed Out ", timeout_count)
                     raise Exception
                 continue
 
             response = self.read_response()
-            print("wait", response)
             if response == self.RESPONSE_OK:
                 break  # we are done.
             elif response == self.RESPONSE_BUFFER_FULL:
@@ -197,18 +195,15 @@ class NanoConnection:
             except Exception:
                 timeout_count += 1
                 if timeout_count >= self.MAX_TIMEOUTS:
-                    print("Timed Out ", timeout_count)
                     raise Exception
             response = self.send_hello()
-            print("send", response)
             if response == self.RESPONSE_OK:
                 break  # break to move on to next packet
             elif response == self.RESPONSE_BUFFER_FULL:
                 while response == self.RESPONSE_BUFFER_FULL:
                     buffer_count += 1
-                    time.sleep(0.01)  # Wait 0.01 seconds and try again.
+                    time.sleep(0.1)  # Wait 0.1 seconds and try again.
                     response = self.send_hello()
-                    print("buffered send", response)
                 break
             elif response == self.RESPONSE_CRC_ERROR:
                 error_count += 1
@@ -234,7 +229,6 @@ class NanoConnection:
             except Exception:
                 timeout_count += 1
                 if timeout_count >= self.MAX_TIMEOUTS:
-                    print("Timed Out ", timeout_count)
                     return None
             return self.read_response()
 
@@ -254,11 +248,9 @@ class NanoConnection:
         Reads the status response from the device, retrying as necessary.
         :return: status response.
         """
-        read_count = 0
         while True:
             try:
                 response = self.usb.read()
-                print("read response ", response)
                 if response == self.RESPONSE_OK:
                     return response
                 elif response == self.RESPONSE_BUFFER_FULL:

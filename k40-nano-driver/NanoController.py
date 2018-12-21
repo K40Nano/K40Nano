@@ -122,7 +122,7 @@ class NanoController:
     def wait(self):
         self.connection.wait()
 
-    def read_egv(self, filemname):
+    def read_egv(self, filename):
         value1 = ""
         value2 = ""
         value3 = ""
@@ -130,7 +130,7 @@ class NanoController:
         data = ""
         # value1 and value2 are the absolute y and x starting positions
         # value3 and value4 are the absolute y and x end positions
-        with open(filemname) as f:
+        with open(filename) as f:
             while True:
                 ## Skip header
                 c = f.read(1)
@@ -139,25 +139,25 @@ class NanoController:
                 ## Read 1st Value
                 c = f.read(1)
                 while c != "%" and c:
-                    value1 = value1 + c
+                    value1 += c
                     c = f.read(1)
                 y_start_mils = int(value1)
                 ## Read 2nd Value
                 c = f.read(1)
                 while c != "%" and c:
-                    value2 = value2 + c
+                    value2 += c
                     c = f.read(1)
                 x_start_mils = int(value2)
                 ## Read 3rd Value
                 c = f.read(1)
                 while c != "%" and c:
-                    value3 = value3 + c
+                    value3 += c
                     c = f.read(1)
                 y_end_mils = int(value3)
                 ## Read 4th Value
                 c = f.read(1)
                 while c != "%" and c:
-                    value4 = value4 + c
+                    value4 += c
                     c = f.read(1)
                 x_end_mils = int(value4)
                 break
@@ -174,9 +174,9 @@ class NanoController:
         self.connection.write_buffer()
         self.connection.wait()
         # rapid move back to starting position
-        dxmils = -(x_end_mils - x_start_mils)
-        dymils = y_end_mils - y_start_mils
-        self.move(dxmils, dymils)
+        dx_mils = -(x_end_mils - x_start_mils)
+        dy_mils = y_end_mils - y_start_mils
+        self.move(dx_mils, dy_mils)
 
 
 if __name__ == "__main__":

@@ -39,7 +39,6 @@ class NanoUsb:
         :param
         :return:
         """
-        print "initialized"
         try:
             self.release_usb()
         except:
@@ -69,23 +68,19 @@ class NanoUsb:
         self.device.ctrl_transfer(0x40, 177, 0x0102, 0, 0, 2000)
 
     def reset_usb(self):
-        print "reset"
         self.device.reset()
 
     def release_usb(self):
-        print "released"
         usb.util.dispose_resources(self.device)
         self.device = None
 
     def read(self):
-        print "read"
         return self.device.read(self.READ_ADDRESS, self.READ_LENGTH, self.TIMEOUT)[1]
 
     def write(self, packet):
         ps = ""
         for p in packet:
             ps += chr(p)
-        print ps + " " + str(packet)
         self.device.write(self.WRITE_ADDRESS, packet, self.TIMEOUT)
 
 
