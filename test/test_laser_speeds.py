@@ -2,9 +2,7 @@ from __future__ import print_function
 
 import unittest
 
-from .k40nano import LaserM2
-
-from .k40nano import LaserM1
+from k40nano import *
 
 
 class TestLaserSpeeds(unittest.TestCase):
