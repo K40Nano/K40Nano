@@ -4,17 +4,17 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="NanoController",
+    name="K40Nano",
     version="0.0.1",
     install_requires=[
         "pyusb"
     ],
     author="Scorch / Tatarize",
     author_email="tatarize@gmail.com",
-    description="Embroidery IO library",
+    description="Low Level K40 Control",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/EmbroidePy/pyembroidery",
+    url="https://github.com/tatarize/K40Nano",
     packages=setuptools.find_packages(),
     classifiers=(
         "Programming Language :: Python :: 2",
