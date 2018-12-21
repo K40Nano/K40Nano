@@ -24,8 +24,8 @@ from __future__ import print_function
 
 import time
 
-# from NanoUsb import NanoUsb
-from MockUsb import MockUsb
+from NanoUsb import NanoUsb
+#from MockUsb import MockUsb
 
 
 def crc_8bit_onewire(line):
@@ -118,8 +118,8 @@ class NanoConnection:
         self.buffer += data
 
     def connect(self):
-        # self.usb = NanoUsb()
-        self.usb = MockUsb()
+        self.usb = NanoUsb()
+        #self.usb = MockUsb()
         self.usb.initialize()
 
     def disconnect(self):
