@@ -1,8 +1,11 @@
 name = "k40-nano-driver"
 
-from .NanoConnection import *
 from .NanoController import *
+from .NanoConnection import *
+from .NanoStream import *
+
 from .LaserA import *
+
 from .LaserB import *
 from .LaserB1 import *
 from .LaserB2 import *
