@@ -24,8 +24,8 @@ from __future__ import print_function
 
 import time
 
-#from NanoUsb import NanoUsb
-from MockUsb import MockUsb
+#from .NanoUsb import NanoUsb
+from .MockUsb import MockUsb
 
 
 def crc_8bit_onewire(line):

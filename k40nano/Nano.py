@@ -1,10 +1,12 @@
+#!/usr/bin/env python
+
 from __future__ import print_function
 
 import glob
 import sys
 import time
 
-from NanoController import NanoController
+from .NanoController import NanoController
 
 NANO_VERSION = "0.0.1"
 

@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 #
 # This class was lifted from Stack Overflow
 # https://stackoverflow.com/questions/7343697/linear-interpolation-python
