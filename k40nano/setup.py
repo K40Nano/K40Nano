@@ -6,6 +6,9 @@ with open("README.md", "r") as fh:
 setuptools.setup(
     name="NanoController",
     version="0.0.1",
+    install_requires=[
+        "pyusb"
+    ],
     author="Scorch / Tatarize",
     author_email="tatarize@gmail.com",
     description="Embroidery IO library",
