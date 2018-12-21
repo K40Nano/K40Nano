@@ -16,15 +16,15 @@ So far NanoController has move(x,y), load_egv(), home_position(), and a few othe
 `python2 ./Nano.py -r -m 2000 2000 -e -i *.EGV -m 750 0 -p 5 -m -3750 750 -p 5 -e`
 
 This calls Nano which is the CLI:
--r: goes to home position
--m 2000 2000: moves +2 inches +2 inches
--e: executes those commands requested thus far.
--i \*.EGV: inputs all the EGV files in the local directory (only test_engrave.EGV)
--m 750 0: moves +0.75 inches right.
--p 5: performs 5 passes of the current stack. Namely, the one loaded file, and the move command.
--m -3750 750: moves -3.75 inches left, and 0.75 inches down.
--p 5: performs 5 passes of the current stack. Namely, the 5x line, and the move to the next row.
--e: executes those commands requested thus far.
+* -r: goes to home position
+* -m 2000 2000: moves +2 inches +2 inches
+* -e: executes those commands requested thus far.
+* -i \*.EGV: inputs all the EGV files in the local directory (only test_engrave.EGV)
+* -m 750 0: moves +0.75 inches right.
+* -p 5: performs 5 passes of the current stack. Namely, the one loaded file, and the move command.
+* -m -3750 750: moves -3.75 inches left, and 0.75 inches down.
+* -p 5: performs 5 passes of the current stack. Namely, the 5x line, and the move to the next row.
+* -e: executes those commands requested thus far.
 
 
 NanoController
