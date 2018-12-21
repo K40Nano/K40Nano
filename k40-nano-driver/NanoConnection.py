@@ -24,7 +24,7 @@ from __future__ import print_function
 
 import time
 
-from NanoUsb import NanoUsb
+# from NanoUsb import NanoUsb
 from MockUsb import MockUsb
 
 
@@ -36,7 +36,8 @@ def crc_8bit_onewire(line):
     """
     crc = 0
     for in_byte in line:
-        in_byte = ord(in_byte)
+        if isinstance(in_byte, str):
+            in_byte = ord(in_byte)
         for j in range(8):
             mix = (crc ^ in_byte) & 0x01
             crc >>= 1
@@ -117,8 +118,8 @@ class NanoConnection:
         self.buffer += data
 
     def connect(self):
-        self.usb = NanoUsb()
-        #self.usb = MockUsb()
+        # self.usb = NanoUsb()
+        self.usb = MockUsb()
         self.usb.initialize()
 
     def disconnect(self):
@@ -166,7 +167,9 @@ class NanoConnection:
             packet += b'F'
         crc = crc_8bit_onewire(packet)
         for i in range(0, len(packet)):
-            packet[i] = ord(packet[i])
+            in_byte = packet[i]
+            if isinstance(in_byte, str):
+                packet[i] = ord(packet[i])
         return [166, 0] + packet + [166, crc]
 
     def send_valid_packet(self, packet):
@@ -245,7 +248,7 @@ class NanoConnection:
             if response == self.RESPONSE_TASK_COMPLETE:
                 break
             time.sleep(0.1)
-        
+
     def read_response(self):
         """
         Reads the status response from the device, retrying as necessary.
