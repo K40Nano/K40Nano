@@ -123,7 +123,7 @@ class NanoConnection:
 
     def disconnect(self):
         self.usb.release_usb()
-        
+
     def wait_finished(self):
         timeout_count = 0
         buffer_count = 0
@@ -137,14 +137,14 @@ class NanoConnection:
                     print("Timed Out ", timeout_count)
                     raise Exception
                 continue
-            
+
             response = self.read_response()
-            print("wait",response)
+            print("wait", response)
             if response == self.RESPONSE_OK:
-                break # we are done.
+                break  # we are done.
             elif response == self.RESPONSE_BUFFER_FULL:
                 buffer_count += 1
-                time.sleep(0.01)  # Wait 0.01 seconds and try again.
+                time.sleep(0.1)  # Wait 0.01 seconds and try again.
                 continue
             elif response == self.RESPONSE_CRC_ERROR:
                 error_count += 1
@@ -174,7 +174,7 @@ class NanoConnection:
             packet = list(packet)
         valid_packet = self.make_valid_packet(packet)
         self.send_packet(valid_packet)
-        
+
     def send_raw_packet(self, packet):
         self.usb.write(packet)
 
@@ -197,7 +197,7 @@ class NanoConnection:
                     print("Timed Out ", timeout_count)
                     raise Exception
             response = self.send_hello()
-            print ("send", response)
+            print("send", response)
             if response == self.RESPONSE_OK:
                 break  # break to move on to next packet
             elif response == self.RESPONSE_BUFFER_FULL:
@@ -205,7 +205,7 @@ class NanoConnection:
                     buffer_count += 1
                     time.sleep(0.01)  # Wait 0.01 seconds and try again.
                     response = self.send_hello()
-                    print ("buffered send", response)
+                    print("buffered send", response)
                 break
             elif response == self.RESPONSE_CRC_ERROR:
                 error_count += 1
@@ -235,6 +235,17 @@ class NanoConnection:
                     return None
             return self.read_response()
 
+    def wait(self):
+        """
+        Waits for task complete.
+        """
+        timeout_count = 0
+        while True:
+            response = self.send_hello()
+            if response == self.RESPONSE_TASK_COMPLETE:
+                break
+            time.sleep(0.1)
+        
     def read_response(self):
         """
         Reads the status response from the device, retrying as necessary.
@@ -253,7 +264,7 @@ class NanoConnection:
                     return response
                 elif response == self.RESPONSE_UNKNOWN_2:
                     return response
-                return self.RESPONSE_ERROR_UNKNOWN
+                return response
             except:
                 return None
 

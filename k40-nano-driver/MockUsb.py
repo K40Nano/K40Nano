@@ -61,7 +61,7 @@ class MockUsb:
         ps = ""
         for p in packet:
             ps += chr(p)
-        print(ps," ", packet)
+        print(ps, " ", packet)
 
 
 if __name__ == "__main__":

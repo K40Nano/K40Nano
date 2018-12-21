@@ -22,21 +22,23 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 from LaserM2 import *
 from NanoConnection import *
 
+
 class NanoController:
-    def __init__(self, connect=None, board=None):
+    def __init__(self, connect=None, laser_board=None):
         self.connection = connect
         if self.connection is None:
             self.connection = NanoConnection()
         self.connection.connect()
-        self.board = board
+        self.board = laser_board
         if self.board is None:
             self.board = LaserM2()
 
-        self.Modal_dir = 0
-        self.Modal_dist = 0
-        self.Modal_on = False
-        self.Modal_AX = 0
-        self.Modal_AY = 0
+        self.state_x_position = 0
+        self.state_y_position = 0
+        self.state_y_direction = 0
+        self.state_x_direction = 0
+        self.state_laser = False
+        self.state_speed = None
 
         self.INIT = b'I'
         self.END = b'S1P'
@@ -47,10 +49,6 @@ class NanoController:
         self.ANGLE = b'M'  # ord("M")=77
         self.ON = b'D'  # ord("D")=68
         self.OFF = b'U'  # ord("U")=85
-
-        self.proper_x = 0
-        self.proper_y = 0
-        self.proper_index = 0
 
         # % Yxtart % Xstart % Yend % Xend % I % C VXXXXXXX CUT_TYPE
         #
@@ -72,297 +70,233 @@ class NanoController:
     def hello(self):
         self.connection.send_hello()
 
-    def write_raw(self, data):
-        """
-        This is just to help work with the utilities helper that has existing code that insists on using raw data writes
-        without any context as to what those elements actually do or mean. They should properly be added to here and
-        nothing should ever write_raw.
-
-        :param data:
-        :return:
-        """
-        # Properly all the NanoUtility stuff must be turned into proper controller commands.
-        pass
-
-    def rapid_move(self, dxmils, dymils):
-        if dxmils != 0 or dymils != 0:
-            self.make_move_data(dxmils, dymils)
-
-    def move(self, direction, distance, laser_on=False, angle_dirs=None):
-        if angle_dirs is None:
-            angle_dirs = [self.Modal_AX, self.Modal_AY]
-
-        if direction == self.Modal_dir \
-                and laser_on == self.Modal_on \
-                and angle_dirs[0] == self.Modal_AX \
-                and angle_dirs[1] == self.Modal_AY:
-            self.Modal_dist = self.Modal_dist + distance
-
-        else:
-            self.update_position_to_modes()
-            if laser_on != self.Modal_on:
-                if laser_on:
-                    self.connection.append(self.ON)
-                else:
-                    self.connection.append(self.OFF)
-                self.Modal_on = laser_on
-
-            if direction == self.ANGLE:
-                if angle_dirs[0] != self.Modal_AX:
-                    self.connection.append(angle_dirs[0])
-                    self.Modal_AX = angle_dirs[0]
-                if angle_dirs[1] != self.Modal_AY:
-                    self.connection.append(angle_dirs[1])
-                    self.Modal_AY = angle_dirs[1]
-
-            self.Modal_dir = direction
-            self.Modal_dist = distance
-
-            if direction == self.RIGHT or direction == self.LEFT:
-                self.Modal_AX = direction
-            if direction == self.UP or direction == self.DOWN:
-                self.Modal_AY = direction
-
-    def update_position_to_modes(self, laser_on=None):
-        if self.Modal_dist > 0:
-            self.connection.append(bytes(bytearray(self.Modal_dir)))
-            self.connection.append(bytes(bytearray(self.make_distance_command(self.Modal_dist))))
-        if laser_on is not None and laser_on != self.Modal_on:
-            if laser_on:
-                self.connection.append(self.ON)
-            else:
-                self.connection.append(self.OFF)
-            self.Modal_on = laser_on
-        self.Modal_dist = 0
-
-    def make_distance_command(self, dist_mils):
-        dist_mils = float(dist_mils)
-        if abs(dist_mils - round(dist_mils, 0)) > 0.000001:
+    @staticmethod
+    def encode_distance(distance_mils):
+        if abs(distance_mils - round(distance_mils, 0)) > 0.000001:
             raise Exception('Distance values should be integer value (inches*1000)')
-        DIST = 0.0
+        distance_mils = int(distance_mils)
         code = ""
-        v122 = 255
-        dist_milsA = int(dist_mils)
+        value_z = 255
 
-        for i in range(0, int(floor(dist_mils / v122))):
-            code += chr(122)
-            dist_milsA = dist_milsA - v122
-            DIST = DIST + v122
-        if dist_milsA == 0:
-            pass
-        elif dist_milsA < 26:  # codes  "a" through  "y"
-            code += chr(96 + dist_milsA)
-        elif dist_milsA < 52:  # codes "|a" through "|z"
-            code += chr(124)
-            code += chr(96 + dist_milsA - 25)
-        elif dist_milsA < 255:
-            code += "%03d" % (int(round(dist_milsA)))
+        while distance_mils >= 255:
+            code += 'z'
+            distance_mils -= value_z
+        if distance_mils == 0:
+            return code
+        elif distance_mils < 26:  # codes  "a" through  "y"
+            return code + chr(96 + distance_mils)
+        elif distance_mils < 52:  # codes "|a" through "|z"
+            return code + '|' + chr(96 + distance_mils - 25)
+        elif distance_mils < 255:
+            code += "%03d" % distance_mils
+            return code
         else:
-            raise Exception("Error in EGV make_distance_in(): dist_milsA=", dist_milsA)
-        return code
+            raise Exception("Could not create distance")  # This really shouldn't happen.
 
-    def make_dir_dist(self, dxmils, dymils, laser_on=False):
-        self.proper_x += dxmils
-        self.proper_y += dymils
-        self.proper_index += 1
-        print(self.proper_index, " dir ", dxmils, " ", dymils, " : ", self.proper_x, " ", self.proper_y)
-        adx = abs(dxmils)
-        ady = abs(dymils)
-        if adx > 0 or ady > 0:
-            if ady > 0:
-                if dymils > 0:
-                    self.move(self.UP, ady, laser_on)
-                else:
-                    self.move(self.DOWN, ady, laser_on)
-            if adx > 0:
-                if dxmils > 0:
-                    self.move(self.RIGHT, adx, laser_on)
-                else:
-                    self.move(self.LEFT, adx, laser_on)
+    def change_speed(self, feed):
+        if feed == self.state_speed:
+            return  # speed is not changing.
+        self.state_speed = feed
+        self.connection.append(b'@NSE')
+        speed = self.board.make_speed(feed)
+        self.connection.append(bytes(speed))
+        self.connection.append(b'NRBS1E')
 
-    def make_cut_line(self, dxmils, dymils, laser_on):
-        self.proper_x += dxmils
-        self.proper_y += dymils
-        self.proper_index += 1
-        print(self.proper_index, " cut ", dxmils, " ", dymils, " : ", self.proper_x, " ", self.proper_y)
-        XCODE = self.RIGHT
-        if dxmils < 0.0:
-            XCODE = self.LEFT
-        YCODE = self.UP
-        if dymils < 0.0:
-            YCODE = self.DOWN
-
-        if abs(dxmils - round(dxmils, 0)) > 0.0 or abs(dymils - round(dymils, 0)) > 0.0:
-            raise Exception('Distance values should be integer value (inches*1000)')
-
-        adx = abs(dxmils / 1000.0)
-        ady = abs(dymils / 1000.0)
-
-        if dxmils == 0:
-            self.move(YCODE, abs(dymils), laser_on=laser_on)
-        elif dymils == 0:
-            self.move(XCODE, abs(dxmils), laser_on=laser_on)
-        elif dxmils == dymils:
-            self.move(self.ANGLE, abs(dxmils), laser_on=laser_on, angle_dirs=[XCODE, YCODE])
+    def change_laser(self, laser):
+        if laser == self.state_laser:
+            return  # laser is not changing.
+        self.state_laser = laser
+        if laser:
+            self.connection.append(self.ON)
         else:
-            h = []
-            if adx > ady:
-                slope = ady / adx
-                n = int(abs(dxmils))
-                CODE = XCODE
-                CODE1 = YCODE
-            else:
-                slope = adx / ady
-                n = int(abs(dymils))
-                CODE = YCODE
-                CODE1 = XCODE
-
-            for i in range(1, n + 1):
-                h.append(round(i * slope, 0))
-
-            Lh = 0.0
-            d1 = 0.0
-            d2 = 0.0
-            d1cnt = 0.0
-            d2cnt = 0.0
-            for i in range(len(h)):
-                if h[i] == Lh:
-                    d1 += 1
-                    if d2 > 0.0:
-                        self.move(self.ANGLE, d2, laser_on=laser_on, angle_dirs=[XCODE, YCODE])
-                        d2cnt = d2cnt + d2
-                        d2 = 0.0
-                else:
-                    d2 += 1
-                    if d1 > 0.0:
-                        self.move(CODE, d1, laser_on=laser_on)
-                        d1cnt = d1cnt + d1
-                        d1 = 0.0
-                Lh = h[i]
-
-            if d1 > 0.0:
-                self.move(CODE, d1, laser_on=laser_on)
-                d1cnt = d1cnt + d1
-                d1 = 0.0
-            if d2 > 0.0:
-                self.move(self.ANGLE, d2, laser_on=laser_on, angle_dirs=[XCODE, YCODE])
-                d2cnt = d2cnt + d2
-                d2 = 0.0
-
-            DX = d2cnt
-            DY = (d1cnt + d2cnt)
-            if adx < ady:
-                error = max(DX - abs(dxmils), DY - abs(dymils))
-            else:
-                error = max(DY - abs(dxmils), DX - abs(dymils))
-            if error > 0:
-                raise Exception("egv.py: Error delta =%f" % error)
-
-    def make_move_data(self, dx_mm, dy_mm):
-        if (abs(dx_mm) + abs(dy_mm)) > 0:
-            self.connection.append(self.INIT)  # I
-            self.make_dir_dist(dx_mm, dy_mm)
-            self.update_position_to_modes()
-            self.connection.append(self.END)  # S, 1, P
-
-    def rapid_move_slow(self, dx, dy):
-        self.make_dir_dist(dx, dy)
-
-    def rapid_move_fast(self, dx, dy):
-        pad = 3
-        if pad == -dx:
-            pad += 3
-        self.make_dir_dist(-pad, 0)  # add "T" move
-        self.make_dir_dist(0, pad)  # add "L" move
-        self.update_position_to_modes(laser_on=False)
-
-        if dx + pad < 0.0:
-            self.connection.append(b'B')
-        else:
-            self.connection.append(b'T')
-        self.connection.append(b'N')
-        self.make_dir_dist(dx + pad, dy - pad)
-        self.update_position_to_modes(laser_on=False)
-        self.connection.append(b'S')
-        self.connection.append(b'E')
-
-    def change_speed(self, feed, board=None, laser_on=False):
-        if board is None:
-            board = self.board
-        cspad = 5
-        if laser_on:
             self.connection.append(self.OFF)
 
-        self.make_dir_dist(-cspad, -cspad)
-        self.update_position_to_modes(laser_on=False)
-
-        self.connection.append(b'@NSE')
-        speed = board.make_speed(feed)
-        self.connection.append(bytes(speed, "UTF-8"))
-        self.connection.append(b'NRB')
-        ## Insert "SIE"
-        self.connection.append(b'S1E')
-
-        self.make_dir_dist(cspad, cspad)
-        self.update_position_to_modes(laser_on=False)
-
-        if laser_on:
-            self.connection.append(self.ON)
-
-    def move_position(self,dx=0, dy=0):
-        if dx == 0 and dy == 0:
-            return;
+    def change_position(self, x, y):
+        if x == self.state_x_position and y == self.state_y_position:
+            return  # this is current position
         self.connection.append(self.INIT)
-        if dy != 0:
-            if dy > 0:
-                self.connection.append(self.DOWN)
-            else:
-                self.connection.append(self.UP)
-            self.connection.append(self.make_distance_command(abs(dy)))
-        if dx != 0:
-            if dx > 0:
-                self.connection.append(self.RIGHT)
-            else:
-                self.connection.append(self.LEFT)
-            self.connection.append(self.make_distance_command(abs(dx)))
+        dy = y - self.state_y_position
+        dx = x - self.state_x_position
+        self.state_x_position = x
+        self.state_y_position = y
+        if dx != 0 and dy != 0:
+            self.connection.append(self.encode_line(dx, dy))
+        else:
+            if dy != 0:
+                if dy > 0:
+                    self.state_y_direction = 1
+                    self.connection.append(self.DOWN)
+                else:
+                    self.state_y_direction = -1
+                    self.connection.append(self.UP)
+                self.connection.append(self.encode_distance(abs(dy)))
+            if dx != 0:
+                if dx > 0:
+                    self.state_x_direction = 1
+                    self.connection.append(self.RIGHT)
+                else:
+                    self.state_y_direction = -1
+                    self.connection.append(self.LEFT)
+                self.connection.append(self.encode_distance(abs(dx)))
         self.connection.append(self.END)
         self.connection.write_buffer()
-        
-    def move_down(self, distance=50):
-        self.connection.append(self.INIT)
-        self.connection.append(self.DOWN)
-        self.connection.append(self.make_distance_command(distance))
-        self.connection.append(self.END)
-        self.connection.write_buffer()
-        
+
+    def move_position(self, dx=0, dy=0):
+        self.change_position(self.state_x_position + dx, self.state_y_position + dy)
+
+    def encode_line(self, dx, dy):
+        # BRESENHAM LINE DRAW ALGORITHM
+        code = ""
+        x = self.state_x_position
+        y = self.state_y_position
+        if dy < 0:
+            dy = -dy
+            step_y = -1
+            code_y = self.UP
+            code += code_y
+        else:
+            step_y = 1
+            code_y = self.DOWN
+            code += code_y
+        if dx < 0:
+            dx = -dx
+            step_x = -1
+            code_x = self.LEFT
+            code += code_x
+        else:
+            step_x = 1
+            code_x = self.RIGHT
+            code += code_x
+        if dx > dy:
+            dy <<= 1  # dy is now 2*dy
+            dx <<= 1
+            fraction = dy - (dx >> 1)  # same as 2*dy - dx
+            while x != dx:
+                if fraction >= 0:
+                    y += step_y
+                    fraction -= dx  # same as fraction -= 2*dx
+                    code += code_y
+                    code += self.encode_distance(1)
+                code += code_x
+                code += self.encode_distance(1)
+                x += step_x
+                fraction += dy  # same as fraction += 2*dy
+        else:
+            dy <<= 1  # dy is now 2*dy
+            dx <<= 1  # dx is now 2*dx
+            fraction = dx - (dy >> 1)
+            while y != dy:
+                if fraction >= 0:
+                    x += step_x
+                    fraction -= dy
+                    code += code_x
+                    code += self.encode_distance(1)
+                code += code_y
+                code += self.encode_distance(1)
+                y += step_y
+                fraction += dx
+        return code
+
+    def move_down(self, distance):
+        self.rapid_move(0,distance)
+
     def move_up(self, distance=50):
+        self.rapid_move(0,-distance)
+
+    def move_right(self, distance=50):
+        self.rapid_move(distance, 0)
+
+    def move_left(self, distance=50):
+        self.rapid_move(-distance,0)
+        
+    def rapid_move(self, dx, dy):
+        if dx == 0 and dy == 0:
+            return
         self.connection.append(self.INIT)
-        self.connection.append(self.UP)
-        self.connection.append(self.make_distance_command(distance))
+        if dx > 0:
+            self.connection.append(self.RIGHT)
+            self.connection.append(self.encode_distance(abs(dx)))
+        elif dx < 0:
+            self.connection.append(self.LEFT)
+            self.connection.append(self.encode_distance(abs(dx)))
+        if dy > 0:
+            self.connection.append(self.DOWN)
+            self.connection.append(self.encode_distance(abs(dy)))
+        elif dy < 0:
+            self.connection.append(self.UP)
+            self.connection.append(self.encode_distance(abs(dy)))
         self.connection.append(self.END)
         self.connection.write_buffer()
     
-    def move_right(self, distance=50):
-        self.connection.append(self.INIT)
-        self.connection.append(self.RIGHT)
-        self.connection.append(self.make_distance_command(distance))
-        self.connection.append(self.END)
-        self.connection.write_buffer()
-        
-    def move_left(self, distance=50):
-        self.connection.append(self.INIT)
-        self.connection.append(self.LEFT)
-        self.connection.append(self.make_distance_command(distance))
-        self.connection.append(self.END)
-        self.connection.write_buffer()
-        
     def release(self):
         self.connection.disconnect()
+        
+    def wait(self):
+        self.connection.wait()
+        
+        
+    def read_egv(self,filemname):
+        value1 = ""
+        value2 = ""
+        value3 = ""
+        value4 = ""
+        data=""
+        #value1 and value2 are the absolute y and x starting positions
+        #value3 and value4 are the absolute y and x end positions
+        with open(filemname) as f:
+            while True:
+                ## Skip header
+                c = f.read(1)
+                while c!="%" and c:
+                    c = f.read(1)
+                ## Read 1st Value
+                c = f.read(1)
+                while c!="%" and c:
+                    value1 = value1 + c
+                    c = f.read(1)
+                y_start_mils = int(value1) 
+                ## Read 2nd Value
+                c = f.read(1)
+                while c!="%" and c:
+                    value2 = value2 + c
+                    c = f.read(1)
+                x_start_mils = int(value2)   
+                ## Read 3rd Value
+                c = f.read(1)
+                while c!="%" and c:
+                    value3 = value3 + c
+                    c = f.read(1)
+                y_end_mils = int(value3)
+                ## Read 4th Value
+                c = f.read(1)
+                while c!="%" and c:
+                    value4 = value4 + c
+                    c = f.read(1)
+                x_end_mils = int(value4)
+                break
 
+            ## Read Data
+            while True:
+                c = f.read(1)
+                if not c:
+                    break
+                if c=='\n' or c==' ' or c=='\r':
+                    pass
+                else:
+                    self.connection.append(c);
+        self.connection.write_buffer()
+        controller.wait()
+        #rapid move back to starting position
+        dxmils = -(x_end_mils - x_start_mils)
+        dymils =   y_end_mils - y_start_mils
+        self.rapid_move(dxmils,dxmils)
+    
 
 if __name__ == "__main__":
     controller = NanoController()
-    controller.hello()
-    controller.home_position()
-    controller.move_position(5000,2000)
+    #controller.home_position()
+    controller.rapid_move(-500,500)
+    controller.read_egv("test_engrave.EGV")
+    controller.rapid_move(1000,1000)
+    controller.read_egv("test_engrave.EGV")
     controller.release()
