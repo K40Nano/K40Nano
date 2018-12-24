@@ -1,7 +1,8 @@
-from math import *
 #!/usr/bin/env python
 
-from .interpolate import interpolate
+from math import *
+
+from interpolate import interpolate
 
 
 class LaserM2:
