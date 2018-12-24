@@ -24,8 +24,10 @@ from __future__ import print_function
 
 import time
 
-#from .NanoUsb import NanoUsb
-from .MockUsb import MockUsb
+try:
+    from .NanoUsb import NanoUsb as Usb
+except:
+    from .MockUsb import MockUsb as Usb
 
 
 def crc_8bit_onewire(line):
@@ -118,8 +120,7 @@ class NanoConnection:
         self.buffer += data
 
     def connect(self):
-        #self.usb = NanoUsb()
-        self.usb = MockUsb()
+        self.usb = Usb()
         self.usb.initialize()
 
     def disconnect(self):
@@ -159,10 +160,12 @@ class NanoConnection:
         :param packet: list of integers.
         :return:
         """
+        while len(packet) < self.PACKET_SIZE:
+            packet += b'L'
         if isinstance(packet, str):
             packet = list(packet)
-        while len(packet) < self.PACKET_SIZE:
-            packet += b'F'
+        if isinstance(packet, bytes):
+            packet = list(packet)
         crc = crc_8bit_onewire(packet)
         for i in range(0, len(packet)):
             in_byte = packet[i]

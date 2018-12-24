@@ -84,7 +84,7 @@ class TestLaserSpeeds(unittest.TestCase):
             self.assertEqual(results[i], b.make_speed(feed_values[i]))
 
     def test_generate_speedB(self):
-        b = LaserA()
+        b = LaserB()
         results = [
             "CV167576250351",
             "CV167735000451",
