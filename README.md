@@ -13,7 +13,7 @@ CLI
 ---
 The included CLI (which is not intended to be exclusive or definitative, but go ahead and ask more to be built on it) is built on the concept of a stack. Namely you have a list of commands you can list them with (-l), you can load files with a wildcard "-i \*.EGV" and it should load those files. So for example, if you wanted to run a series of 25 jobs, with 30 seconds between each. You would call "Nano.py -m <x> <y> -e -i my_job.egv -w 30 -p 25 -e" which would add a rapid move to the stack, execute that, Add my_job.egv to the stack, add a wait 30 seconds to the stack then duplicate the stack 25 times, allowing you to perform an automated task (or burn the same thing 25 times, with a little bit of cool off time).
 
-* -i [<input>]\*, loads egv files
+* -i [\<file-name-\*\>]\*, loads egv files
 * -p [n], sets the number of passes
 * -m [dx] [dy], move command
 * -w [seconds], wait_time
