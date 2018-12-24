@@ -2,7 +2,7 @@
 
 from math import *
 
-from interpolate import interpolate
+from .interpolate import interpolate as interpolate
 
 
 class LaserM1:

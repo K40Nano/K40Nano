@@ -38,7 +38,10 @@ class MockUsb:
         :param
         :return:
         """
-        print("Device Initialized")
+        print("Mock Device Initialized")
+        print("----")
+        print("The pyusb module didn't load, so testing Mock USB has been utilized.")
+        print("Actual functioning requires the usb device be setup properly.")
         self.device = self
 
     def reset_usb(self):

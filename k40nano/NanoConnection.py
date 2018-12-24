@@ -25,9 +25,9 @@ from __future__ import print_function
 import time
 
 try:
-    from NanoUsb import NanoUsb
+    from NanoUsb import NanoUsb as Usb
 except:
-    from MockUsb import MockUsb as NanoUsb
+    from MockUsb import MockUsb as Usb
 
 
 def crc_8bit_onewire(line):
@@ -120,8 +120,7 @@ class NanoConnection:
         self.buffer += data
 
     def connect(self):
-        # self.usb = NanoUsb()
-        self.usb = NanoUsb()
+        self.usb = Usb()
         self.usb.initialize()
 
     def disconnect(self):
