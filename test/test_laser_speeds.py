@@ -1,6 +1,12 @@
 import unittest
 
-from k40nano import *
+from k40nano import LaserA
+from k40nano import LaserB
+from k40nano import LaserB1
+from k40nano import LaserB2
+from k40nano import LaserM
+from k40nano import LaserM1
+from k40nano import LaserM2
 
 
 class TestLaserSpeeds(unittest.TestCase):
@@ -84,7 +90,7 @@ class TestLaserSpeeds(unittest.TestCase):
             self.assertEqual(results[i], b.make_speed(feed_values[i]))
 
     def test_generate_speedB(self):
-        b = LaserA()
+        b = LaserB()
         results = [
             "CV167576250351",
             "CV167735000451",
