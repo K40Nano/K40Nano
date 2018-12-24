@@ -6,7 +6,7 @@ import glob
 import sys
 import time
 
-from NanoController import NanoController
+from .NanoController import NanoController
 
 NANO_VERSION = "0.0.1"
 
