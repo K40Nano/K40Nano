@@ -143,7 +143,7 @@ class Nano:
     def command_home(self, values):
         self.log("Home Position")
         m = NanoCommand()
-        m.command = self.controller.home_position
+        m.command = self.controller.home
         values.append(m)
         return values
 

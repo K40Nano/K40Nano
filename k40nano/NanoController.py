@@ -40,27 +40,38 @@ class NanoController:
         self.state_laser = False
         self.state_speed = None
 
-        self.INIT = b'I'
-        self.END = b'S1P'
-        self.RIGHT = b'B'  # ord("B")=66
-        self.LEFT = b'T'  # ord("T")=84
-        self.UP = b'L'  # ord("L")=76
-        self.DOWN = b'R'  # ord("R")=82
-        self.ANGLE = b'M'  # ord("M")=77
-        self.ON = b'D'  # ord("D")=68
-        self.OFF = b'U'  # ord("U")=85
+        self.INTERRUPT = b'I'
+        self.S1P = b'S1P'
+        self.RIGHT = b'B'
+        self.LEFT = b'T'
+        self.UP = b'L'
+        self.DOWN = b'R'
+        self.ANGLE = b'M'
+        self.ON = b'D'
+        self.OFF = b'U'
+        self.NEXT = b'N'
+        self.S1E = b'S1E'
 
     def unlock_rail(self):
         self.connection.send_valid_packet(b'IS2P')
 
-    def e_stop(self):
+    def lock_rail(self):
+        self.connection.send_valid_packet(b'IS1P')
+
+    def interrupt(self):
         self.connection.send_valid_packet(b'I')
 
-    def home_position(self):
+    def home(self):
         self.connection.send_valid_packet(b'IPP')
 
     def hello(self):
         self.connection.send_hello()
+
+    def encode_speed(self, feed_rate):
+        return self.board.make_speed(feed_rate, 0)
+
+    def encode_raster_speed(self, feed_rate, step_amount):
+        return self.board.make_speed(feed_rate, step_amount)
 
     @staticmethod
     def encode_distance(distance_mils):
@@ -100,7 +111,7 @@ class NanoController:
     def move(self, dx, dy):
         if dx == 0 and dy == 0:
             return
-        self.connection.append(self.INIT)
+        self.connection.append(self.INTERRUPT)
         if dx > 0:
             self.connection.append(self.RIGHT)
             self.connection.append(self.encode_distance(abs(dx)))
@@ -113,7 +124,7 @@ class NanoController:
         elif dy < 0:
             self.connection.append(self.UP)
             self.connection.append(self.encode_distance(abs(dy)))
-        self.connection.append(self.END)
+        self.connection.append(self.S1P)
         self.connection.write_buffer()
 
     def release(self):
@@ -181,6 +192,6 @@ class NanoController:
 
 if __name__ == "__main__":
     controller = NanoController()
-    controller.home_position()
+    controller.home()
     controller.move(500, 500)
     controller.release()
