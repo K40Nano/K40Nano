@@ -244,6 +244,7 @@ class NanoConnection:
             response = self.send_hello()
             if response == self.RESPONSE_TASK_COMPLETE:
                 break
+            timeout_count += 1
             time.sleep(0.1)
 
     def read_response(self):

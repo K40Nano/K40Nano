@@ -19,6 +19,8 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 """
 
+import struct
+import zlib
 from .LaserM2 import LaserM2
 from .NanoConnection import NanoConnection
 
@@ -132,6 +134,11 @@ class NanoController:
 
     def wait(self):
         self.connection.wait()
+
+    def read_png(self, filename):
+        with open(filename,"rb") as f:
+            for scanline in self.PngScanlines(f):
+                pass
 
     def read_egv(self, filename):
         value1 = ""
