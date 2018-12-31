@@ -20,7 +20,7 @@ The core commands are:
 * home():
     * Homes the device.
 * rail(lock=False):
-    * Locks or unlikes the rail
+    * Locks or unlocks the rail
 * wait():
     * Waits until all operations are done.
 * halt():
