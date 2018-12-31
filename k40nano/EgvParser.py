@@ -1,8 +1,4 @@
-# EGV Parser released under MIT License.
-
-from math import ceil
-
-from PngRaster import PngRaster
+from .NanoConstants import *
 
 
 class EgvParser:
@@ -65,154 +61,118 @@ class EgvParser:
         self.distance += amount
 
 
-MODE_E = 0b00000001  # Slow mode
-MODE_V = 0b00000010  # Speed set
-MODE_D = 0b00000100  # Laser On
-MODE_X = 0b00001000  # Going -X
-MODE_Y = 0b00010000  # Going -Y
-MODE_F = 0b00100000  # Finishing.
-
-
 class EgvInterpreter:
-    def __init__(self):
-        self.rail = 0
-        self.current_x = 0
-        self.current_y = 0
-        self.draw_segments = []
-        self.mode = 0
-        self.number_value = 0
+    def __init__(self, controller):
+        self.controller = controller
         self.distance_x = 0
         self.distance_y = 0
-        self.raster_step = 0
-        self.speed = None
+        self.mode = 0
 
     def commit_moves(self):
-        if self.mode & MODE_X:
-            next_x = self.current_x - self.distance_x
+        d_laser = self.mode & MODE_LASER_ON
+        d_slow = self.mode & MODE_SLOW
+        if self.mode & MODE_DIRECTION_LEFT:
+            dx = -self.distance_x
         else:
-            next_x = self.current_x + self.distance_x
-        if self.mode & MODE_Y:
-            next_y = self.current_y - self.distance_y
+            dx = self.distance_x
+        if self.mode & MODE_DIRECTION_TOP:
+            dy = -self.distance_y
         else:
-            next_y = self.current_y + self.distance_y
-        self.draw_segments.append([self.current_x, self.current_y, next_x, next_y, self.mode])
-        self.current_x = next_x
-        self.current_y = next_y
+            dy = self.distance_y
+        if dx != 0 or dy != 0:
+            self.controller.move(dx, dy, d_slow, d_laser)
         self.distance_x = 0
         self.distance_y = 0
 
-    def send(self, commands):
-        cmd = commands[0]
-        if cmd is None:
-            return
-        elif cmd == b'T':  # move right
-            self.distance_x += commands[1] + commands[2]
-            if not self.mode & MODE_X:
-                self.distance_y += self.raster_step
-            self.mode |= MODE_X
-            if self.mode & MODE_E:
-                self.commit_moves()
-        elif cmd == b'B':  # move left
-            self.distance_x += commands[1] + commands[2]
-            if self.mode & MODE_X:
-                self.distance_y += self.raster_step
-            self.mode &= ~MODE_X
-            if self.mode & MODE_E:
-                self.commit_moves()
-        elif cmd == b'L':  # move top
-            self.distance_y += commands[1] + commands[2]
-            self.mode |= MODE_Y
-            if self.mode & MODE_E:
-                self.commit_moves()
-        elif cmd == b'R':  # move bottom
-            self.distance_y += commands[1] + commands[2]
-            self.mode &= ~MODE_Y
-            if self.mode & MODE_E:
-                self.commit_moves()
-        elif cmd == b'M':
-            self.distance_x += commands[1] + commands[2]
-            self.distance_y += commands[1] + commands[2]
-            if self.mode & MODE_E:
-                self.commit_moves()
-        elif cmd == b'D':  # laser on
-            self.mode |= MODE_D
-        elif cmd == b'U':  # laser off
-            self.mode &= ~MODE_D
-        elif cmd == b'S':  # s command
-            pass
-        elif cmd == b'E':  # slow
-            self.commit_moves()
-            self.mode |= MODE_E
-        elif cmd == b'P':  # pop
-            self.commit_moves()
-        elif cmd == b'I':  # interrupt
-            self.mode &= ~MODE_F
-        elif cmd == b'F':  # finish
-            self.mode |= MODE_F
-        elif cmd == b'C':  # cut
-            self.raster_step = 0
-        elif cmd == b'V':  # velocity
-            self.speed = commands[2]
-            self.mode |= MODE_V
-        elif cmd == b'G':  # engrave
-            self.raster_step = commands[2]
-        elif cmd == b'N':  # next
-            self.commit_moves()
-            self.mode &= ~MODE_E
-        elif cmd == b'@':  # reset
-            self.mode &= ~MODE_E
+    def get_slow(self):
+        return self.mode & MODE_SLOW
+
+    def get_laser(self):
+        return self.mode & MODE_LASER_ON
+
+    def set_mode(self, mask, set_value):
+        if set_value:
+            self.mode |= mask
+        else:
+            self.mode &= ~mask
 
 
-def get_bounds(values):
-    min_x = float('inf')
-    min_y = float('inf')
-    max_x = -float('inf')
-    max_y = -float('inf')
-    for segments in values:
-        x0 = segments[0]
-        y0 = segments[1]
-        x1 = segments[2]
-        y1 = segments[3]
-        min_x = min(min_x, x0, x1)
-        min_y = min(min_y, y0, y1)
-        max_x = max(max_x, x0, x1)
-        max_y = max(max_y, y0, y1)
-    return min_x, min_y, max_x, max_y
-
-
-def read(f):
-    filename = f
-    interpreter = EgvInterpreter()
+def parse_egv(f, controller):
     parser = EgvParser()
     if isinstance(f, str):
         with open(f, "rb") as f:
-            for c in parser.parse(f):
-                interpreter.send(c)
-    else:
-        for c in parser.parse(f):
-            interpreter.send(c)
+            parse_egv(f, controller)
+            return
+    parser.skip_header(f)
+    egv = EgvInterpreter(controller)
 
-    bounds = get_bounds(interpreter.draw_segments)
-    width = bounds[2] - bounds[0]
-    height = bounds[3] - bounds[1]
-
-    width = int(ceil(width / 8) * 8)
-    raster = PngRaster(width + 2, height + 2)
-    raster.fill(1)
-    for segments in interpreter.draw_segments:
-        if segments[4] & MODE_D:
-            raster.draw_line(segments[0] + 1 - bounds[0],
-                             segments[1] + 1 - bounds[1],
-                             segments[2] + 1 - bounds[0],
-                             segments[3] + 1 - bounds[1], 0xff0000)
-        else:
-            raster.draw_line(segments[0] + 1 - bounds[0],
-                             segments[1] + 1 - bounds[1],
-                             segments[2] + 1 - bounds[0],
-                             segments[3] + 1 - bounds[1], 0x00ff00)
-    raster.save_png(str(filename) + ".png")
-
-
-# argv = sys.argv
-# read(argv[1])
-read("d.EGV")
+    for commands in parser.parse(f):
+        cmd = commands[0]
+        if cmd is None:
+            return
+        elif cmd == COMMAND_RIGHT:  # move right
+            slow = egv.get_slow()
+            laser = egv.get_laser()
+            egv.distance_x += commands[1] + commands[2]
+            egv.set_mode(MODE_DIRECTION_LEFT, False)
+            if slow or laser:
+                egv.commit_moves()
+        elif cmd == COMMAND_LEFT:  # move left
+            slow = egv.get_slow()
+            laser = egv.get_laser()
+            egv.distance_x += commands[1] + commands[2]
+            egv.set_mode(MODE_DIRECTION_LEFT, True)
+            if slow or laser:
+                egv.commit_moves()
+        elif cmd == COMMAND_TOP:  # move top
+            slow = egv.get_slow()
+            laser = egv.get_laser()
+            egv.distance_y += commands[1] + commands[2]
+            egv.set_mode(MODE_DIRECTION_TOP, True)
+            if slow or laser:
+                egv.commit_moves()
+        elif cmd == COMMAND_BOTTOM:  # move bottom
+            slow = egv.get_slow()
+            laser = egv.get_laser()
+            egv.distance_y += commands[1] + commands[2]
+            egv.set_mode(MODE_DIRECTION_TOP, False)
+            if slow or laser:
+                egv.commit_moves()
+        elif cmd == COMMAND_ANGLE:
+            slow = egv.get_slow()
+            laser = egv.get_laser()
+            distance = commands[1] + commands[2]
+            egv.distance_y += distance
+            egv.distance_x += distance
+            if slow or laser:
+                egv.commit_moves()
+        elif cmd == COMMAND_ON:  # laser on
+            egv.set_mode(MODE_LASER_ON, True)
+        elif cmd == COMMAND_OFF:  # laser off
+            egv.set_mode(MODE_LASER_ON, False)
+        elif cmd == COMMAND_S:  # s command
+            pass
+        elif cmd == COMMAND_E:  # slow
+            egv.commit_moves()
+            egv.set_mode(MODE_SLOW, True)
+        elif cmd == COMMAND_P:  # pop
+            egv.set_mode(MODE_SLOW, False)
+            egv.commit_moves()
+        elif cmd == COMMAND_INTERRUPT:  # interrupt
+            controller.halt()
+        elif cmd == COMMAND_FINISH:  # finish
+            egv.commit_moves()
+            controller.wait()
+        elif cmd == COMMAND_CUT:  # cut
+            controller.set_speed(None, 0)
+        elif cmd == COMMAND_SPEED:  # velocity
+            controller.set_speed(commands[2])
+        elif cmd == COMMAND_STEP:  # engrave
+            controller.set_speed(None, commands[2])
+        elif cmd == COMMAND_NEXT:  # next
+            egv.commit_moves()
+            egv.set_mode(MODE_SLOW, False)
+            egv.set_mode(MODE_LASER_ON, False)
+        elif cmd == COMMAND_RESET:  # reset
+            egv.commit_moves()
+            egv.set_mode(MODE_SLOW, False)
