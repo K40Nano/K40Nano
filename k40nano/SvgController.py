@@ -1,6 +1,6 @@
 from xml.etree.cElementTree import Element, ElementTree, SubElement
 
-from Controller import Controller
+from .Controller import Controller
 
 NAME_SVG = "svg"
 NAME_GROUP = "g"

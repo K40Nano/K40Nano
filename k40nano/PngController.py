@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from .Controller import Controller
 from .PngRaster import PngRaster
 

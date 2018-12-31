@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import struct
 import zlib
 from math import ceil

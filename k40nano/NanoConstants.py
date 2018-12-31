@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 MODE_SLOW = 0b00000001  # Slow mode
 MODE_SPEED_SET = 0b00000010  # Speed set
 MODE_LASER_ON = 0b00000100  # Laser On
