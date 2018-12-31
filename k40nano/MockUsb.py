@@ -24,12 +24,8 @@ from __future__ import print_function
 
 class MockUsb:
     def __init__(self):
-        self.PACKET_SIZE = 30
-        self.TIMEOUT = 300  # Time in milliseconds
-        self.WRITE_ADDRESS = 0x2  # Write address
-        self.READ_ADDRESS = 0x82  # Read address
-        self.READ_LENGTH = 168
         self.device = None
+        self.finish = 0
 
     def initialize(self):
         """
@@ -58,12 +54,17 @@ class MockUsb:
         self.device.do_mock_write(packet)
 
     def get_mock_read_value(self):
+        self.finish -= 1
+        if self.finish == 0:
+            return 236
         return 206
 
     def do_mock_write(self, packet):
         ps = ""
         for p in packet:
             ps += chr(p)
+        if "F" in ps:
+            self.finish = 10
         print(ps, " ", packet)
 
 

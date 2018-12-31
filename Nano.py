@@ -6,9 +6,9 @@ import glob
 import sys
 import time
 
-from .NanoController import NanoController
+from k40nano import *
 
-NANO_VERSION = "0.0.1"
+NANO_VERSION = "0.0.2"
 
 
 class NanoCommand:
@@ -30,7 +30,7 @@ class Nano:
         self.elements.append("-e")  # always execute the stack.
         self.command_lookup = {
             "-i": self.command_input,
-            "-I": self.command_input,
+            "-o": self.command_output,
             "-p": self.command_passes,
             "-m": self.command_move,
             "-w": self.command_wait,
@@ -40,12 +40,13 @@ class Nano:
             "-u": self.command_unlock,
             "-q": self.command_quiet,
             "-v": self.command_verbose,
-            "-h": self.command_help
+            "-h": self.command_help,
         }
 
     def command_help(self, values):
         print("Nano v.", NANO_VERSION)
-        print("-i [<input>]*, loads egv files")
+        print("-i [<input>]*, loads egv/png files")
+        print("-o [<output>]?, sets output method")
         print("-p [n], sets the number of passes")
         print("-m [dx] [dy], move command")
         print("-w [seconds], wait_time")
@@ -56,6 +57,7 @@ class Nano:
         print("-q, quiet mode")
         print("-v, verbose mode")
         print("-h, display this message")
+
         print("")
         return values
 
@@ -135,7 +137,11 @@ class Nano:
             if value.wait != 0:
                 time.sleep(value.wait)
             if value.filename is not None:
-                self.controller.read_egv(value.filename)
+                fname = str(value.filename).lower()
+                if fname.endswith("egv"):
+                    parse_egv(value.filename, self.controller)
+                elif fname.endswith("png"):
+                    parse_png(value.filename, self.controller)
             if value.command is not None:
                 value.command()
         return []
@@ -143,15 +149,33 @@ class Nano:
     def command_home(self, values):
         self.log("Home Position")
         m = NanoCommand()
-        m.command = self.controller.home
+        m.command = self.controller.home()
         values.append(m)
         return values
 
     def command_unlock(self, values):
         self.log("Unlock Rail")
         m = NanoCommand()
-        m.command = self.controller.unlock_rail
+        m.command = self.controller.rail()
         values.append(m)
+        return values
+
+    def command_output(self, values):
+        value = self.v()
+        if value is None:
+            self.controller = NanoController()
+            self.log("NanoController")
+        else:
+            value = str(value)
+            if value.endswith("svg"):
+                self.controller = SvgController(value)
+                self.log("SvgController")
+            elif value.endswith("png"):
+                self.controller = PngController(value)
+                self.log("PngController")
+            elif value.endswith("egv"):
+                self.controller = NanoController(FileWriteConnection(value))
+                self.log("EgvController")
         return values
 
     def command_quiet(self, values):
@@ -167,5 +191,8 @@ class Nano:
 
 
 argv = sys.argv
+# argv = ["-o", "svg", "-i", "outfile1.EGV", "-e"]
+# argv = ["-o", "egv", "-i", "outfile2.EGV", "-e"]
+# argv = ["-o", "png", "-i", "outfile2.EGV", "-e"]
 nano = Nano(argv)
 nano.execute()

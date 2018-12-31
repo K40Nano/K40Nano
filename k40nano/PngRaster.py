@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import struct
 import zlib
 from math import ceil
@@ -37,7 +39,8 @@ class PngRaster:
         if byte_index_end > len(self.palette):
             self.palette += b'\x00' * (byte_index_end - len(self.palette))
         section = self.palette[byte_index_start: byte_index_end]
-        color = int.from_bytes(section, byteorder='big', signed=False)
+        section = (4 - len(section)) * b'\x00' + section
+        color = struct.unpack(">I", section)[0]
         if value is not None:
             for pos in range(byte_index_end - 1, byte_index_start - 1, -1):
                 self.palette[pos] = value & 0xff
@@ -65,7 +68,8 @@ class PngRaster:
         end_pos_in_bytes = int(end_pos_in_bits / 8) + 1  # byte 0 is interlacing
 
         section = scanline[start_pos_in_bytes:end_pos_in_bytes + 1]
-        value = int.from_bytes(section, byteorder='big', signed=False)
+        section = (4 - len(section)) * b'\x00' + section
+        value = struct.unpack(">I", section)[0]
         unused_bits_right_of_sample = (8 - (end_pos_in_bits + 1) % 8) % 8
         mask_sample_bits = (1 << pixel_length_in_bits) - 1
         original = (value >> unused_bits_right_of_sample) & mask_sample_bits
@@ -100,14 +104,14 @@ class PngRaster:
             return 1
 
     def save_png(self, filename):
-        with open(filename, "wb") as f:
+        with open(filename, "wb+") as f:
             f.write(self.get_png_bytes())
 
     def get_png_bytes(self):
         buf = self.buf
         width = self.width
         height = self.height
-        raw_data = b"".join(buf[i] for i in range(0, height))
+        raw_data = b''.join(bytes(buf[i]) for i in range(0, height))
 
         def png_pack(png_tag, data):
             chunk_head = png_tag + data
@@ -117,7 +121,7 @@ class PngRaster:
             plte = b''
         else:
             plte = png_pack(b'PLTE', self.palette)
-        return b"".join([
+        return b''.join([
             b'\x89PNG\r\n\x1a\n',
             png_pack(b'IHDR', struct.pack("!2I5B", width, height, self.bit_depth, self.color_type, 0, 0, 0)),
             plte,
@@ -152,7 +156,8 @@ class PngRaster:
             end_pos_in_bytes = int(end_pos_in_bits / 8) + 1
 
             section = scanline[start_pos_in_bytes:end_pos_in_bytes + 1]
-            value = int.from_bytes(section, byteorder='big', signed=False)
+            section = (4 - len(section)) * b'\x00' + section
+            value = struct.unpack(">I", section)[0]
             unused_bits_right_of_sample = (8 - (end_pos_in_bits + 1) % 8) % 8
             sample = (value >> unused_bits_right_of_sample) & mask_sample_bits
             if sample_count == 1:
@@ -276,7 +281,8 @@ class PngRaster:
                     fraction -= dx  # same as fraction -= 2*dx
                 x0 += step_x
                 fraction += dy  # same as fraction += 2*dy
-                self.plot(x0, y0, color)
+                if x0 != x1:
+                    self.plot(x0, y0, color)
         else:
             dy <<= 1  # dy is now 2*dy
             dx <<= 1  # dx is now 2*dx
@@ -288,7 +294,8 @@ class PngRaster:
                     fraction -= dy
                 y0 += step_y
                 fraction += dx
-                self.plot(x0, y0, color)
+                if y0 != y1:
+                    self.plot(x0, y0, color)
 
     def fill(self, color):
         for y in range(self.height):

@@ -52,7 +52,7 @@ def crc_8bit_onewire(line):
 class NanoConnection:
     def __init__(self):
         self.PACKET_SIZE = 30
-        self.buffer = []
+        self.buffer = b''
         self.position = 0
 
         self.MAX_ERRORS = 10
@@ -66,7 +66,7 @@ class NanoConnection:
 
         # RESPONSE CODES
         self.RESPONSE_OK = 206
-        self.RESPONSE_BUFFER_FULL = 238
+        self.RESPONSE_BUSY = 238
         self.RESPONSE_CRC_ERROR = 207
         self.RESPONSE_TASK_COMPLETE = 236
         self.RESPONSE_UNKNOWN_2 = 239  # after failed initialization followed by successful initialization
@@ -75,36 +75,36 @@ class NanoConnection:
 
     def write(self, data):
         """
-        Writes the data to the K40 device, encoding that data internally into packets, validates those packets
-        and performs the resends as needed..
-
+        Writes all data immediately to the K40 device. Final packet is padded with TOP commands (L).
         :param data:
         :return:
         """
-        if isinstance(data, bytes):
-            data = list(data)  # If the data was written properly as a bytes object we convert that to an int list.
-        size = self.PACKET_SIZE
-        data = self.buffer + data
-        chunks = [data[i:i + size] for i in range(0, len(data), size)]
-        for chunk in chunks:
-            self.send_valid_packet(chunk)
+        self.write_completed_packets(data)
+        self.write_buffer()
 
-    def write_completed_packets(self, data):
-        if isinstance(data, bytes):
-            data = list(data)  # If the data was written properly as a bytes object we convert that to an int list.
+    def write_completed_packets(self, data=None):
+        """
+        Writes complete packet data immediately to the K40 device. Buffers the remaining.
+        :param data:
+        :return:
+        """
         size = self.PACKET_SIZE
-        data = self.buffer + data
+        if data is None:
+            data = self.buffer
+        else:
+            data = self.buffer + data
         chunks = [data[i:i + size] for i in range(0, len(data), size)]
         for chunk in chunks[:-1]:
             self.send_valid_packet(chunk)
         self.buffer = chunks[-1]
         if len(self.buffer) == self.PACKET_SIZE:
             self.send_valid_packet(self.buffer)
-            self.buffer = []
+            self.buffer = b''
 
     def write_buffer(self):
         """
-        Blocks while waiting for the K40 device to return TASK_COMPLETE to the check status.
+        Writes all buffered data immediately to the K40 device. Final packet is padded with TOP commands (L).
+        :param data:
         :return:
         """
         if len(self.buffer) == 0:
@@ -114,54 +114,32 @@ class NanoConnection:
         chunks = [data[i:i + size] for i in range(0, len(data), size)]
         for chunk in chunks:
             self.send_valid_packet(chunk)
-        self.buffer = []
+        self.buffer = b''
 
     def append(self, data):
+        """
+        Appends data to the buffered data.
+        :param data:
+        :return:
+        """
         self.buffer += data
 
     def connect(self):
+        """
+        Connects to the USB device.
+        """
         self.usb = Usb()
         self.usb.initialize()
 
     def disconnect(self):
+        """
+        Disconnects from USB device.
+        """
         self.usb.release_usb()
 
-    def wait_finished(self):
-        timeout_count = 0
-        buffer_count = 0
-        error_count = 0
-        while True:
-            try:
-                self.send_hello()
-            except Exception:
-                timeout_count += 1
-                if timeout_count >= self.MAX_TIMEOUTS:
-                    raise Exception
-                continue
-
-            response = self.read_response()
-            if response == self.RESPONSE_OK:
-                break  # we are done.
-            elif response == self.RESPONSE_BUFFER_FULL:
-                buffer_count += 1
-                time.sleep(0.1)  # Wait 0.01 seconds and try again.
-                continue
-            elif response == self.RESPONSE_CRC_ERROR:
-                error_count += 1
-                if error_count < self.MAX_ERRORS:
-                    raise IOError
-                continue
-            elif response is None:
-                continue
-            break  # Unknown/Unhandled response.
-
     def make_valid_packet(self, packet):
-        """
-        :param packet: list of integers.
-        :return:
-        """
-        while len(packet) < self.PACKET_SIZE:
-            packet += b'L'
+        if len(packet) < self.PACKET_SIZE:
+            packet += b'L' * (self.PACKET_SIZE - len(packet))
         if isinstance(packet, str):
             packet = list(packet)
         if isinstance(packet, bytes):
@@ -174,17 +152,28 @@ class NanoConnection:
         return [166, 0] + packet + [166, crc]
 
     def send_valid_packet(self, packet):
+        """
+        Sends the validated version of packet to the USB immediately
+        :param packet: packet to be validated and sent.
+        :return:
+        """
         if isinstance(packet, str):
             packet = list(packet)
         valid_packet = self.make_valid_packet(packet)
         self.send_packet(valid_packet)
 
     def send_raw_packet(self, packet):
+        """
+        Sends the packet to the USB immediately. No attempt to validate or resend is made.
+
+        :param packet: 0-30 bytes as int list.
+        :return:
+        """
         self.usb.write(packet)
 
     def send_packet(self, packet):
         """
-        Creates a valid packet and attempts to send it, resending on timeout and CRC error.
+        Attempts to send packet, resending on timeout and CRC error.
 
         :param packet: 0-30 bytes as int list.
         :return:
@@ -202,8 +191,8 @@ class NanoConnection:
             response = self.send_hello()
             if response == self.RESPONSE_OK:
                 break  # break to move on to next packet
-            elif response == self.RESPONSE_BUFFER_FULL:
-                while response == self.RESPONSE_BUFFER_FULL:
+            elif response == self.RESPONSE_BUSY:
+                while response == self.RESPONSE_BUSY:
                     buffer_count += 1
                     time.sleep(0.1)  # Wait 0.1 seconds and try again.
                     response = self.send_hello()
@@ -220,6 +209,18 @@ class NanoConnection:
                 break  # break to move on to next packet
             break  # Unknown/Unhandled response.
 
+    def wait(self):
+        """
+        Waits for task complete.
+        """
+        timeout_count = 0
+        while True:
+            response = self.send_hello()
+            if response == self.RESPONSE_TASK_COMPLETE:
+                break
+            timeout_count += 1
+            time.sleep(0.1)
+
     def send_hello(self):
         """
         Checks the status response after sending a HELLO, retrying as necessary.
@@ -235,18 +236,6 @@ class NanoConnection:
                     return None
             return self.read_response()
 
-    def wait(self):
-        """
-        Waits for task complete.
-        """
-        timeout_count = 0
-        while True:
-            response = self.send_hello()
-            if response == self.RESPONSE_TASK_COMPLETE:
-                break
-            timeout_count += 1
-            time.sleep(0.1)
-
     def read_response(self):
         """
         Reads the status response from the device, retrying as necessary.
@@ -257,7 +246,7 @@ class NanoConnection:
                 response = self.usb.read()
                 if response == self.RESPONSE_OK:
                     return response
-                elif response == self.RESPONSE_BUFFER_FULL:
+                elif response == self.RESPONSE_BUSY:
                     return response
                 elif response == self.RESPONSE_TASK_COMPLETE:
                     return response
@@ -272,3 +261,4 @@ if __name__ == "__main__":
     connection = NanoConnection()
     connection.connect()
     connection.send_valid_packet(b'IPP')
+    connection.disconnect()
