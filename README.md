@@ -48,7 +48,7 @@ Parsers
 ---
 There are a few basic parser classes these take a filename or fileobject and a controller. `parse_png` within the `PngParser` class parses a Png file scanline by scanline and feeds that information into the controller, it does this directly via by reading the PNG directly, and iterating through the file and returning the relevant commands scanline by scanline.
 
-`parse_egv` within the `EgvParser` class reads the egv file and turns the EGV file into controller commands sent to the API. The `NanoController` would then turns these commands back into .egv data. This might seem a bit odd but, it allows all interations to deal with the API exclusively thereby allowing it to know the exact state of the machine at all times. And allows other parsed elements to work as first order objects.
+`parse_egv` within the `EgvParser` class reads the egv file and turns the EGV file into controller commands sent to the API. The `NanoController` would then turn these commands back into .egv data. This might seem a bit odd but, it allows all interations to deal with the API exclusively thereby allowing it to know the exact state of the machine at all times. And allows other parsed elements to work as first order objects. And allow various shortcuts and data consolidations to happen seemlessly.
 
 Several other parsers can be added along these same lines, basically anything that takes in vector-like data. The idea being simply accept a filename or fileobject then parse that applying the relevant core commands to the API and having it handled from there, and all properly encapsolated and isolated.
 
