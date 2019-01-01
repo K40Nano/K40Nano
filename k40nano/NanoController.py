@@ -86,6 +86,17 @@ class NanoController(Controller):
 
     def move_abs(self, x, y, slow=False, laser=False):
         self.move(x - self.current_x, y - self.current_y, slow, laser)
+    
+    def move_now(self, dx, dy, absolute=False):
+        self.connection.append(b'I')
+        if absolute:
+            self.move_x(x - self.current_x)
+            self.move_y(y - self.current_y)
+        else:
+            self.move_x(dx)
+            self.move_y(dy)
+        self.connection.append(b'S1P')
+        self.connection.write_buffer()
 
     def increase_speed(self, increase=0):
         current_speed = self.speed
@@ -122,6 +133,8 @@ class NanoController(Controller):
 
     def home(self):
         self.connection.send_valid_packet(COMMAND_HOME)
+        self.current_x = 0
+        self.current_y = 0
 
     def rail(self, lock=False):
         if not lock:

@@ -11,6 +11,9 @@ class Controller:
     def move_abs(self, x, y, slow=False, laser=False):
         pass
 
+    def move_now(self, dx, dy, absolute=False):
+        pass
+    
     def set_speed(self, speed=-1.0):
         pass
 
