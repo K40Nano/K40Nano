@@ -36,8 +36,10 @@ class MockUsb:
         """
         print("Mock Device Initialized")
         print("----")
-        print("The pyusb module didn't load, so testing Mock USB has been utilized.")
-        print("Actual functioning requires the usb device be setup properly.")
+        print("The pyusb module didn't load, so MockUsb has been loaded.")
+        print("This is merely for testing purposes. There is no connection.")
+        print("Connection requires pyusb and a working backend driver.")
+        print("----")
         self.device = self
 
     def reset_usb(self):

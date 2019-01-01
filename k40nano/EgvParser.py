@@ -69,6 +69,7 @@ class EgvInterpreter:
         self.distance_x = 0
         self.distance_y = 0
         self.mode = 0
+        self.speedcode = ""
 
     def commit_moves(self):
         d_laser = self.mode & MODE_LASER_ON
@@ -166,15 +167,22 @@ def parse_egv(f, controller):
             egv.commit_moves()
             controller.wait()
         elif cmd == COMMAND_CUT:  # cut
-            controller.set_speed(None, 0)
+            controller.set_step(0)
+            egv.speedcode += str(COMMAND_CUT)
         elif cmd == COMMAND_SPEED:  # velocity
-            controller.set_speed(commands[2])
+            egv.speedcode += str(COMMAND_SPEED) + str(commands[2])
+            controller.set_speed(egv.speedcode)
         elif cmd == COMMAND_STEP:  # engrave
-            controller.set_speed(None, commands[2])
+            controller.set_step(commands[2])
+            stepcode = "G%03d" % commands[2]
+            egv.speedcode += stepcode
+            controller.set_speed(egv.speedcode)
         elif cmd == COMMAND_NEXT:  # next
             egv.commit_moves()
             egv.set_mode(MODE_SLOW, False)
             egv.set_mode(MODE_LASER_ON, False)
+            egv.speedcode = ""
         elif cmd == COMMAND_RESET:  # reset
             egv.commit_moves()
             egv.set_mode(MODE_SLOW, False)
+            egv.speedcode = ""

@@ -95,3 +95,4 @@ class TestLaserSpeeds(unittest.TestCase):
         feed_values = [.01, .05, .1, 10, 400]
         for i in range(len(feed_values)):
             self.assertEqual(results[i], b.make_speed(feed_values[i]))
+

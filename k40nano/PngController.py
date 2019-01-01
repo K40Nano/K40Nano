@@ -33,21 +33,6 @@ class PngController(Controller):
     def move_abs(self, x, y, slow=False, laser=False):
         self.move(x - self.current_x, y - self.current_y, slow, laser)
 
-    def set_speed(self, speed=None, raster_step=None):
-        pass
-
-    def home(self):
-        pass
-
-    def rail(self, lock=False):
-        pass
-
-    def wait(self):
-        pass
-
-    def halt(self):
-        pass
-
     def release(self):
         if len(self.segment_values) == 0:
             return

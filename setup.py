@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="k40nano",
-    version="0.0.1",
+    version="0.0.3",
     install_requires=[
         "pyusb"
     ],
