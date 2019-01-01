@@ -244,11 +244,9 @@ class Nano:
                             self.control().wait()
                     else:
                         if value.abs:
-                            self.control().move_abs(pos[0], pos[1])
-                            self.control().rail(True)
+                            self.control().move_now(pos[0], pos[1], True)
                         else:
-                            self.control().move(pos[0], pos[1])
-                            self.control().rail(True)
+                            self.control().move_now(pos[0], pos[1])
             if value.wait != 0:
                 time.sleep(value.wait)
             if value.speed is not None:

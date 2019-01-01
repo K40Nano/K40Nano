@@ -37,9 +37,8 @@ def crc_8bit_onewire(line):
     http://www.pjrc.com/teensy/td_libs_OneWire.html
     """
     crc = 0
-    for in_byte in line:
-        if isinstance(in_byte, str):
-            in_byte = ord(in_byte)
+    for i in range(2,32):
+        in_byte = line[i]
         for j in range(8):
             mix = (crc ^ in_byte) & 0x01
             crc >>= 1
@@ -138,18 +137,12 @@ class NanoConnection:
         self.usb.release_usb()
 
     def make_valid_packet(self, packet):
-        if len(packet) < self.PACKET_SIZE:
-            packet += b'L' * (self.PACKET_SIZE - len(packet))
-        if isinstance(packet, str):
-            packet = list(packet)
-        if isinstance(packet, bytes):
-            packet = list(packet)
-        crc = crc_8bit_onewire(packet)
+        p = [166] + [0] + ([ord('L')] * self.PACKET_SIZE) + [166] + [0]
         for i in range(0, len(packet)):
-            in_byte = packet[i]
-            if isinstance(in_byte, str):
-                packet[i] = ord(packet[i])
-        return [166, 0] + packet + [166, crc]
+            p[i+2] = ord(packet[i])
+        crc = crc_8bit_onewire(p)
+        p[33] = crc
+        return p
 
     def send_valid_packet(self, packet):
         """
