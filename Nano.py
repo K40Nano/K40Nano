@@ -132,7 +132,6 @@ class Nano:
         self.log("Executing:", len(values))
         for value in values:
             if value.dx != 0 or value.dy != 0:
-                print(value.dx, ", ", value.dy)
                 self.controller.move(value.dx, value.dy)
             if value.wait != 0:
                 time.sleep(value.wait)
@@ -141,6 +140,7 @@ class Nano:
                 if fname.endswith("egv"):
                     parse_egv(value.filename, self.controller)
                 elif fname.endswith("png"):
+                    self.controller.set_speed(52.1) #230
                     parse_png(value.filename, self.controller)
             if value.command is not None:
                 value.command()
@@ -156,7 +156,7 @@ class Nano:
     def command_unlock(self, values):
         self.log("Unlock Rail")
         m = NanoCommand()
-        m.command = self.controller.rail()
+        m.command = self.controller.rail(False)
         values.append(m)
         return values
 

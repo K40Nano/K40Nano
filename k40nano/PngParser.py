@@ -107,11 +107,17 @@ def parse_png(f, controller):
         with open(f, "rb") as f:
             parse_png(f, controller)
             return
-    increment = 1
+    increment = 4
+    step = 4
     on_count = 0
     off_count = 0
+    speed = 75.0
+    controller.set_speed(speed)
     for scanline in png_scanlines(f):
-        if increment == -1:
+        #print(speed)
+        #controller.set_speed(speed)
+        #speed += 1
+        if increment < 0:
             scanline = reversed(scanline)
         for i in scanline:
             if is_on(i):
@@ -130,5 +136,5 @@ def parse_png(f, controller):
         if on_count != 0:
             controller.move(on_count, 0, slow=True, laser=True)
             on_count = 0
-        controller.move(0, 1, slow=True, laser=False)
+        controller.move(0, step, slow=True, laser=False)
         increment = -increment

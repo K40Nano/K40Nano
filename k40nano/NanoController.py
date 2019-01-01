@@ -100,6 +100,9 @@ class NanoController(Controller):
                 speed = self.encode_speed(speed)
             self.speed = speed
             self.mode |= MODE_SPEED_SET
+            if self.is_slow():
+                self.rapid()
+                self.slow()
 
     def home(self):
         self.connection.send_valid_packet(COMMAND_HOME)
@@ -159,11 +162,15 @@ class NanoController(Controller):
             self.connection.write_completed_packets(COMMAND_NEXT + COMMAND_S + COMMAND_E)
             self.set_mode(MODE_RESET, False)
         if self.raster_step == 0:
-            self.connection.write_completed_packets(COMMAND_CUT)
+            if COMMAND_CUT not in self.speed:
+                self.connection.write_completed_packets(COMMAND_CUT)
         if self.speed is not None:
-            self.connection.write_completed_packets(COMMAND_SPEED + bytearray(str(self.speed), "utf8"))
+            if COMMAND_SPEED in self.speed:
+                self.connection.write_completed_packets(bytes(bytearray(str(self.speed), "utf8")))
+            else:
+                self.connection.write_completed_packets(COMMAND_SPEED + bytes(bytearray(str(self.speed), "utf8")))
         if self.raster_step != 0:
-            self.connection.write_completed_packets(COMMAND_STEP + bytearray(str(self.raster_step), "utf8"))
+            self.connection.write_completed_packets(COMMAND_STEP + bytes(bytearray(str(self.raster_step), "utf8")))
         self.connection.write_completed_packets(COMMAND_NEXT)
         if self.is_left():
             self.connection.write_completed_packets(COMMAND_LEFT)
