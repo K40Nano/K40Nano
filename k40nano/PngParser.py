@@ -114,9 +114,6 @@ def parse_png(f, controller):
     speed = 75.0
     controller.set_speed(speed)
     for scanline in png_scanlines(f):
-        #print(speed)
-        #controller.set_speed(speed)
-        #speed += 1
         if increment < 0:
             scanline = reversed(scanline)
         for i in scanline:

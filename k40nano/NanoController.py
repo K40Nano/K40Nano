@@ -40,6 +40,7 @@ class NanoController(Controller):
         self.mode = 0
         self.raster_step = 0
         self.speed = None
+        self.speedcode = None
 
     def move(self, dx, dy, slow=False, laser=False):
         if dx == 0 and dy == 0:
@@ -86,23 +87,38 @@ class NanoController(Controller):
     def move_abs(self, x, y, slow=False, laser=False):
         self.move(x - self.current_x, y - self.current_y, slow, laser)
 
-    def set_speed(self, speed=None, raster_step=None):
-        if speed is None:
-            if raster_step is None:
-                self.speed = None
-                self.raster_step = 0
-            else:
-                self.raster_step = raster_step
-        else:
-            if raster_step is not None:
-                self.raster_step = raster_step
-            if isinstance(speed, float):
-                speed = self.encode_speed(speed)
-            self.speed = speed
-            self.mode |= MODE_SPEED_SET
-            if self.is_slow():
+    def increase_speed(self, increase=0):
+        current_speed = self.speed
+        if current_speed is None:
+            current_speed = 0
+        self.set_speed(current_speed + float(increase))
+
+    def set_step(self, step=0):
+        if step == self.raster_step:
+            return
+        self.raster_step = step
+        if self.speed is not None:
+            self.speedcode = self.encode_speed(self.speed, self.raster_step)
+            if self.is_slow():  # speed is changed, to take effect we must reenter slow_mode
                 self.rapid()
                 self.slow()
+
+    def set_speed(self, speed=-1.0):
+        if isinstance(speed, int):
+            self.speed = float(speed)
+        if isinstance(speed, float):
+            if speed <= 0:  # set speed to default.
+                self.speedcode = None
+                self.speed = None
+            else:
+                self.speed = speed
+                self.speedcode = self.encode_speed(self.speed, self.raster_step)
+        elif isinstance(speed, str):
+            self.speedcode = speed
+            self.speed = None
+        if self.is_slow():  # speed is changed, to take effect we must reenter slow_mode
+            self.rapid()
+            self.slow()
 
     def home(self):
         self.connection.send_valid_packet(COMMAND_HOME)
@@ -116,7 +132,10 @@ class NanoController(Controller):
     def wait(self):
         if self.is_finishing():
             return
-        self.connection.write(b'NS1EFNSE')  # This will trigger the wait in any mode.
+        # self.connection.write(b'NS1EFNSE')  # This will trigger the wait in any mode.
+        if not self.is_slow():
+            self.connection.write_completed_packets(b'NS1E')
+        self.connection.write(b'FNSE')
         self.set_mode(MODE_SLOW, False)
         self.set_mode(MODE_LASER_ON, False)
         self.set_mode(MODE_FINISHING, True)
@@ -161,16 +180,8 @@ class NanoController(Controller):
         if self.is_reset():
             self.connection.write_completed_packets(COMMAND_NEXT + COMMAND_S + COMMAND_E)
             self.set_mode(MODE_RESET, False)
-        if self.raster_step == 0:
-            if COMMAND_CUT not in self.speed:
-                self.connection.write_completed_packets(COMMAND_CUT)
-        if self.speed is not None:
-            if COMMAND_SPEED in self.speed:
-                self.connection.write_completed_packets(bytes(bytearray(str(self.speed), "utf8")))
-            else:
-                self.connection.write_completed_packets(COMMAND_SPEED + bytes(bytearray(str(self.speed), "utf8")))
-        if self.raster_step != 0:
-            self.connection.write_completed_packets(COMMAND_STEP + bytes(bytearray(str(self.raster_step), "utf8")))
+        if self.speedcode is not None:
+            self.connection.write_completed_packets(self.speedcode)
         self.connection.write_completed_packets(COMMAND_NEXT)
         if self.is_left():
             self.connection.write_completed_packets(COMMAND_LEFT)
@@ -374,10 +385,3 @@ class NanoController(Controller):
             max_x = max(max_x, x0, x1)
             max_y = max(max_y, y0, y1)
         return min_x, min_y, max_x, max_y
-
-
-if __name__ == "__main__":
-    controller = NanoController()
-    controller.home()
-    controller.move(500, 500)
-    controller.release()

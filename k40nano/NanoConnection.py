@@ -255,10 +255,3 @@ class NanoConnection:
                 return response
             except:
                 return None
-
-
-if __name__ == "__main__":
-    connection = NanoConnection()
-    connection.connect()
-    connection.send_valid_packet(b'IPP')
-    connection.disconnect()

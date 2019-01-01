@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+
 class Controller:
     def __init__(self):
         pass
@@ -10,7 +11,13 @@ class Controller:
     def move_abs(self, x, y, slow=False, laser=False):
         pass
 
-    def set_speed(self, speed=None, raster_step=None):
+    def set_speed(self, speed=-1.0):
+        pass
+
+    def set_step(self, step=0):
+        pass
+
+    def increase_speed(self, increase=0):
         pass
 
     def home(self):
