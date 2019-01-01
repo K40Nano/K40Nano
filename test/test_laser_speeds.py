@@ -96,10 +96,3 @@ class TestLaserSpeeds(unittest.TestCase):
         for i in range(len(feed_values)):
             self.assertEqual(results[i], b.make_speed(feed_values[i]))
 
-    def test_nano_controller(self):
-        controller = NanoController(FileWriteConnection("test"))
-        controller.home()
-        controller.release()
-        with open("test.egv", "r+") as f:
-            line = f.readline()
-            self.assertEqual("IPP", line)
