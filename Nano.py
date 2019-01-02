@@ -309,6 +309,9 @@ class Nano:
             elif value == "print":
                 self.controller = NanoController(PrintConnection())
                 self.log("PrintNanoController")
+            elif value == "mock":
+                self.controller = NanoController(usb=MockUsb())
+                self.log("MockUsb NanoController")
         return values
 
     def command_quiet(self, values):
@@ -324,6 +327,5 @@ class Nano:
 
 
 argv = sys.argv
-# argv = "-o hello.png -s 75 -m 50 50 -e -c 1in 0 0 1in -1in 0 0 -1in -p 5".split(" ")
 nano = Nano(argv)
 nano.execute()

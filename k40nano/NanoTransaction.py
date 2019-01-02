@@ -22,20 +22,68 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 from .NanoConstants import *
 from .Transaction import Transaction
 
+STATE_EMPTY = 0
+STATE_INIT = 1
+STATE_RAPID = 2
+STATE_SLOW = 3
+STATE_FINISH = 4
+
 
 class NanoTransaction(Transaction):
     def __init__(self, writer, board):
         Transaction.__init__(self, writer)
         self.board = board
+        self.state = STATE_EMPTY
         self.is_on = False
         self.is_left = False
         self.is_top = False
-        self.is_slow = False
-        self.is_initialized = False
-        self.is_finishing = False
-        self.is_speed_changed = False
-        self.is_speed_set = False
-        self.is_reset = False
+        self.needs_speed = True
+        self.was_ever_slowed = False
+        self.was_ever_moved = False
+
+    def state_to_init(self):
+        if self.state == STATE_INIT:
+            return
+        if self.state == STATE_EMPTY:
+            self.writer.write(b'I')
+            self.state = STATE_INIT
+            return
+        self.state_to_slow()
+        self.writer.write(b'@NSE')
+        self.state = STATE_INIT
+
+    def state_to_finish(self):
+        if self.state == STATE_FINISH:
+            return
+        self.state_to_slow()
+        self.writer.write(b'FNSE')
+        self.state = STATE_FINISH
+
+    def state_to_slow(self, declare_directions=True):
+        if self.state == STATE_SLOW:
+            return
+        self.state_to_rapid(True)
+        self.writer.write(b'S1E')
+        self.state = STATE_SLOW
+        self.was_ever_slowed = True
+
+    def state_to_rapid(self, declare_directions=False):
+        if self.state == STATE_EMPTY:
+            self.state_to_init()
+        self.writer.write(b'N')  # init, rapid, slow,
+        self.state = STATE_RAPID
+        if declare_directions:
+            self.declare_direction_mode()
+
+    def declare_direction_mode(self):
+        if self.is_left:
+            self.writer.write(COMMAND_LEFT)
+        else:
+            self.writer.write(COMMAND_RIGHT)
+        if self.is_top:
+            self.writer.write(COMMAND_TOP)
+        else:
+            self.writer.write(COMMAND_BOTTOM)
 
     def move(self, dx, dy, laser=False, slow=False, absolute=False):
         if absolute:
@@ -43,70 +91,41 @@ class NanoTransaction(Transaction):
             return
         if dx == 0 and dy == 0:
             return
-        if not self.is_initialized:
-            self.writer.write(COMMAND_INTERRUPT)
-            self.is_initialized = True
-        if not slow:
+        self.was_ever_moved = True
+        if self.state == STATE_EMPTY:
+            self.state_to_init()
+
+        if not laser:
             self.laser_off()
-            if self.is_slow:
-                self.writer.write(COMMAND_RESET)
-                self.is_slow = False
-                self.is_reset = True
-            if dy == 0:
-                if dx > 0:  # right
-                    self.move_right(dx)
-                else:
-                    self.move_left(dx)
-                return
-            if dx == 0:
-                if dy > 0:  # bottom
-                    self.move_bottom(dy)
-                else:
-                    self.move_top(dy)
-                return
-            self.move_x(dx)
-            self.move_y(dy)
-            return
-        if not self.is_speed_set:
+
+        if self.needs_speed:
+            self.state_to_init()
             if self.speedcode is not None:
                 self.writer.write(self.speedcode)
-            self.is_speed_set = True
-        elif self.is_speed_changed:
-            if self.is_slow:
-                self.writer.write(COMMAND_RESET)
-                self.writer.write(COMMAND_NEXT + COMMAND_S + COMMAND_E)
-                if self.speedcode is not None:
-                    self.writer.write(self.speedcode)
-                self.is_slow = False
-            self.is_speed_changed = False
-        if not self.is_slow:
-            if self.is_reset:
-                self.writer.write(COMMAND_NEXT + COMMAND_S + COMMAND_E)
-                self.is_reset = False
-            self.writer.write(COMMAND_NEXT)
-            if self.is_left:
-                self.writer.write(COMMAND_LEFT)
+            self.needs_speed = False
+            self.state = STATE_RAPID
+
+        if slow:
+            # We are performing a slow move.
+            self.state_to_slow()
+            if laser and not self.is_on:
+                self.laser_on()
+            elif not laser and self.is_on:
+                self.laser_off()
+            if dy == 0:
+                self.move_x(dx)
+            elif dx == 0:
+                self.move_y(dy)
+            elif abs(dx) == abs(dy):
+                self.move_angle(dx, dy)
             else:
-                self.writer.write(COMMAND_RIGHT)
-            if self.is_top:
-                self.writer.write(COMMAND_TOP)
-            else:
-                self.writer.write(COMMAND_BOTTOM)
-            self.writer.write(COMMAND_S1E)
-            self.is_slow = True
-        if laser and not self.is_on:
-            self.laser_on()
-        elif not laser and self.is_on:
-            self.laser_off()
-        if dy == 0:
-            self.move_x(dx)
-        elif dx == 0:
-            self.move_y(dy)
-        elif abs(dx) == abs(dy):
-            self.move_angle(dx, dy)
+                self.move_line(dx, dy)
+                # Draw a cut line with a bresenham line draw algorithm to the new location using dx and dy.
         else:
-            self.move_line(dx, dy)
-            # Draw a cut line with a bresenham line draw algorithm to the new location using dx and dy.
+            # We are performing a rapid move.
+            self.state_to_rapid()
+            self.move_x(dx)
+            self.move_y(dy)
 
     def increase_speed(self, increase=0):
         current_speed = self.speed
@@ -120,8 +139,7 @@ class NanoTransaction(Transaction):
         self.raster_step = step
         if self.speed is not None:
             self.speedcode = self.encode_speed(self.speed, self.raster_step)
-        if self.is_speed_set:
-            self.is_speed_changed = True
+        self.needs_speed = True
 
     def set_speed(self, speed=-1.0):
         if isinstance(speed, int):
@@ -136,35 +154,29 @@ class NanoTransaction(Transaction):
         elif isinstance(speed, str):  # We only have the text code
             self.speedcode = speed
             self.speed = None
-        if self.is_speed_set:
-            self.is_speed_changed = True
+        self.needs_speed = True
 
     def write(self, data):
-        if not self.is_initialized:
-            self.writer.write(COMMAND_INTERRUPT)
-            self.is_initialized = True
+        if self.state == STATE_EMPTY:
+            self.state_to_init()
         self.writer.write(data)
 
-    def pop(self):
-        self.writer.write(b'P')
-        self.writer.close(self)
-
     def finish(self):
-        if not self.is_initialized:
+        writer = self.writer
+        if self.state == STATE_EMPTY:
+            writer.close(self)
             return
-        if self.is_finishing:
+        if not self.was_ever_moved:
+            writer.close(self)
             return
-        self.is_finishing = True
-        if not self.is_speed_set:
-            self.write(b'S1')
-            self.pop()
+        if not self.was_ever_slowed:
+            writer.write(b'S1P')
+            writer.close(self)
             return
-        if not self.is_slow:
-            self.writer.write(b'NS1E')
-        self.writer.write(b'FNSE')
-
-        self.writer.close(self)
-        self.writer.wait()
+        self.laser_off()
+        self.state_to_finish()
+        writer.close(self)
+        writer.wait()
 
     def laser_on(self):
         if self.is_on:
