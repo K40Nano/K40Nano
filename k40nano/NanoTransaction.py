@@ -24,9 +24,11 @@ from .Transaction import Transaction
 
 STATE_EMPTY = 0
 STATE_INIT = 1
-STATE_RAPID = 2
-STATE_SLOW = 3
-STATE_FINISH = 4
+STATE_SPEED = 2
+STATE_R1 = 3
+STATE_SLOW = 4
+STATE_R2 = 5
+STATE_FINISH = 6
 
 
 class NanoTransaction(Transaction):
@@ -40,17 +42,49 @@ class NanoTransaction(Transaction):
         self.needs_speed = True
         self.was_ever_slowed = False
         self.was_ever_moved = False
+        self.was_last_rapid = False
 
     def state_to_init(self):
         if self.state == STATE_INIT:
             return
         if self.state == STATE_EMPTY:
             self.writer.write(b'I')
-            self.state = STATE_INIT
+        else:
+            self.state_to_r2()
+            self.writer.write(b'NSE')
+        self.state = STATE_INIT
+
+    def state_to_speed(self):
+        if self.state == STATE_SPEED:
+            return
+        self.state_to_init()
+        if self.speedcode is not None:
+            self.writer.write(self.speedcode)
+        self.needs_speed = False
+        self.state = STATE_SPEED
+    
+    def state_to_r1(self):
+        if self.state == STATE_R1:
+            return
+        self.state_to_speed()
+        self.state = STATE_R1
+
+    def state_to_slow(self):
+        if self.state == STATE_SLOW:
+            return
+        self.state_to_r1()
+        self.writer.write(b'NS1E')
+        self.state = STATE_SLOW
+        self.was_ever_slowed = True
+    
+    
+    def state_to_r2(self):
+        if self.state == STATE_R2:
             return
         self.state_to_slow()
-        self.writer.write(b'@NSE')
-        self.state = STATE_INIT
+        self.writer.write(b'@')
+        self.state = STATE_R2
+    
 
     def state_to_finish(self):
         if self.state == STATE_FINISH:
@@ -59,54 +93,19 @@ class NanoTransaction(Transaction):
         self.writer.write(b'FNSE')
         self.state = STATE_FINISH
 
-    def state_to_slow(self, declare_directions=True):
-        if self.state == STATE_SLOW:
-            return
-        self.state_to_rapid(True)
-        self.writer.write(b'S1E')
-        self.state = STATE_SLOW
-        self.was_ever_slowed = True
-
-    def state_to_rapid(self, declare_directions=False):
-        if self.state == STATE_EMPTY:
-            self.state_to_init()
-        self.writer.write(b'N')  # init, rapid, slow,
-        self.state = STATE_RAPID
-        if declare_directions:
-            self.declare_direction_mode()
-
-    def declare_direction_mode(self):
-        if self.is_left:
-            self.writer.write(COMMAND_LEFT)
-        else:
-            self.writer.write(COMMAND_RIGHT)
-        if self.is_top:
-            self.writer.write(COMMAND_TOP)
-        else:
-            self.writer.write(COMMAND_BOTTOM)
-
     def move(self, dx, dy, laser=False, slow=False, absolute=False):
         if absolute:
             self.move(dx - self.current_x, dy - self.current_y, laser, slow, absolute=False)
             return
         if dx == 0 and dy == 0:
             return
-        self.was_ever_moved = True
-        if self.state == STATE_EMPTY:
-            self.state_to_init()
-
+        
         if not laser:
             self.laser_off()
 
-        if self.needs_speed:
-            self.state_to_init()
-            if self.speedcode is not None:
-                self.writer.write(self.speedcode)
-            self.needs_speed = False
-            self.state = STATE_RAPID
-
         if slow:
             # We are performing a slow move.
+            self.was_last_rapid = False
             self.state_to_slow()
             if laser and not self.is_on:
                 self.laser_on()
@@ -123,9 +122,21 @@ class NanoTransaction(Transaction):
                 # Draw a cut line with a bresenham line draw algorithm to the new location using dx and dy.
         else:
             # We are performing a rapid move.
-            self.state_to_rapid()
-            self.move_x(dx)
-            self.move_y(dy)
+            if self.was_last_rapid:
+                self.writer.write(b'N')
+            if self.was_ever_slowed:
+                self.state_to_r2()
+            else:
+                self.state_to_r1()
+            if dy == 0:
+                self.move_x(dx)
+            elif dx == 0:
+                self.move_y(dy)
+            else:
+                self.move_x(dx)
+                self.move_y(dy)
+            self.was_last_rapid = True
+        self.was_ever_moved = True
 
     def increase_speed(self, increase=0):
         current_speed = self.speed
@@ -203,13 +214,13 @@ class NanoTransaction(Transaction):
             self.move_top(dy)
 
     def move_angle(self, dx, dy):
-        if not self.is_left and dx < 0:  # left
+        if dx < 0:  # left
             self.move_left()
-        if self.is_left and dx > 0:  # right
+        if dx > 0:  # right
             self.move_right()
-        if not self.is_top and dy < 0:  # top
+        if dy < 0:  # top
             self.move_top()
-        if self.is_top and dy > 0:  # bottom
+        if dy > 0:  # bottom
             self.move_bottom()
         self.current_x += dx
         self.current_y += dy

@@ -137,25 +137,16 @@ def parse_egv(f, transaction):
         elif cmd == COMMAND_CUT:  # cut
             raster_step = 0
             transaction.set_step(raster_step)
-            if raster_step == 0:
-                code = "CV%s" % str(speed_code)
-            else:
-                code = "V%sG%03d" % (str(speed_code), raster_step)
+            code = "CV%s" % str(speed_code)
             transaction.set_speed(code)
         elif cmd == COMMAND_SPEED:  # velocity
             speed_code = str(commands[2])
-            if raster_step == 0:
-                code = "CV%s" % str(speed_code)
-            else:
-                code = "V%sG%03d" % (str(speed_code), raster_step)
+            code = "CV%s" % str(speed_code)
             transaction.set_speed(code)
         elif cmd == COMMAND_STEP:  # engrave
             raster_step = commands[2]
             transaction.set_step(raster_step)
-            if raster_step == 0:
-                code = "CV%s" % str(speed_code)
-            else:
-                code = "V%sG%03d" % (str(speed_code), raster_step)
+            code = "CV%s" % str(speed_code)
             transaction.set_speed(code)
         elif cmd == COMMAND_NEXT:  # next
             is_slow = False
