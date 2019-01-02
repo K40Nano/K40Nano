@@ -8,8 +8,9 @@ class TestNanoController(unittest.TestCase):
 
     def test_nano_controller(self):
         controller = NanoController(FileWriteConnection("test"))
-        controller.move(1, 1)
-        controller.finish()
+        transaction = controller.start()
+        transaction.move(1, 1)
+        transaction.finish()
         with open("test.egv", "r+") as f:
             line = f.readline()
             self.assertEqual("BaRa", line)
