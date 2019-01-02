@@ -37,7 +37,7 @@ def crc_8bit_onewire(line):
     http://www.pjrc.com/teensy/td_libs_OneWire.html
     """
     crc = 0
-    for i in range(2,32):
+    for i in range(2, 32):
         in_byte = line[i]
         for j in range(8):
             mix = (crc ^ in_byte) & 0x01
@@ -91,6 +91,8 @@ class NanoConnection:
         if data is None:
             data = self.buffer
         else:
+            if isinstance(data, str):
+                data = data.encode("utf-8")
             data = self.buffer + data
         chunks = [data[i:i + size] for i in range(0, len(data), size)]
         for chunk in chunks[:-1]:
@@ -139,7 +141,10 @@ class NanoConnection:
     def make_valid_packet(self, packet):
         p = [166] + [0] + ([ord('L')] * self.PACKET_SIZE) + [166] + [0]
         for i in range(0, len(packet)):
-            p[i+2] = ord(packet[i])
+            v = packet[i]
+            if isinstance(v, str):  # if python_2
+                v = ord(v)
+            p[i + 2] = v
         crc = crc_8bit_onewire(p)
         p[33] = crc
         return p

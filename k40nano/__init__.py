@@ -1,7 +1,7 @@
 
-from .Controller import Controller
-from .SvgController import SvgController
-from .PngController import PngController
+from .Transaction import Transaction
+from .SvgTransaction import SvgTransaction
+from .PngTransaction import PngTransaction
 from .NanoController import NanoController
 from .NanoConnection import NanoConnection
 from .FileWriteConnection import FileWriteConnection

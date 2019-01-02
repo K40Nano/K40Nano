@@ -62,10 +62,10 @@ class PngRaster:
 
     @staticmethod
     def scanline_sample(scanline, pixel_length_in_bits, x, sample=None):
-        start_pos_in_bits = x * pixel_length_in_bits
+        start_pos_in_bits = 8 + x * pixel_length_in_bits  # byte 0 is interlacing
         end_pos_in_bits = start_pos_in_bits + pixel_length_in_bits - 1
-        start_pos_in_bytes = int(start_pos_in_bits / 8) + 1  # byte 0 is interlacing
-        end_pos_in_bytes = int(end_pos_in_bits / 8) + 1  # byte 0 is interlacing
+        start_pos_in_bytes = int(start_pos_in_bits / 8)
+        end_pos_in_bytes = int(end_pos_in_bits / 8)
 
         section = scanline[start_pos_in_bytes:end_pos_in_bytes + 1]
         section = (4 - len(section)) * b'\x00' + section
@@ -128,6 +128,10 @@ class PngRaster:
             png_pack(b'IDAT', zlib.compress(raw_data, 9)),
             png_pack(b'IEND', b'')])
 
+    def get_samples(self):
+        for scanline in self.buf:
+            yield self.as_samples(self.bit_depth,self.get_sample_count(self.color_type),scanline)
+
     @staticmethod
     def read_png_chunks(file):
         while True:
@@ -150,10 +154,12 @@ class PngRaster:
         pixel_length_in_bits = bit_depth * sample_count
         bit_depth_mask = (1 << bit_depth) - 1
         mask_sample_bits = (1 << pixel_length_in_bits) - 1
-        for start_pos_in_bits in range(0, len(scanline) * 8, pixel_length_in_bits):
+        total_samples = int(((len(scanline)-1) * 8) / pixel_length_in_bits)
+        for i in range(0, total_samples):
+            start_pos_in_bits = (i * pixel_length_in_bits) + 8
             end_pos_in_bits = start_pos_in_bits + pixel_length_in_bits - 1
-            start_pos_in_bytes = int(start_pos_in_bits / 8) + 1
-            end_pos_in_bytes = int(end_pos_in_bits / 8) + 1
+            start_pos_in_bytes = int(start_pos_in_bits / 8)
+            end_pos_in_bytes = int(end_pos_in_bits / 8)
 
             section = scanline[start_pos_in_bytes:end_pos_in_bytes + 1]
             section = (4 - len(section)) * b'\x00' + section
@@ -298,9 +304,26 @@ class PngRaster:
                     self.plot(x0, y0, color)
 
     def fill(self, color):
-        for y in range(self.height):
-            for x in range(self.width):
-                self.pixel(x, y, color)
+        sample_count = self.get_sample_count(self.color_type)
+        pixel_length_in_bits = self.bit_depth * sample_count
+        scanline_length_in_bits = self.width * pixel_length_in_bits + 8
+        scanline_length_in_bytes = self.stride
+        color_length_in_bits = pixel_length_in_bits
+        scanline_remainder = (scanline_length_in_bytes * 8) - scanline_length_in_bits
+        while color_length_in_bits <= 16:
+            color = color | (color << color_length_in_bits)
+            color_length_in_bits *= 2
+
+        for scanline in self.buf:
+            value_digits = scanline_remainder
+            bit_buffer = 0
+            for pos in range(scanline_length_in_bytes-1, 0, -1):
+                while value_digits < 8:
+                    bit_buffer |= (color << value_digits)
+                    value_digits += color_length_in_bits
+                scanline[pos] = bit_buffer & 0xff
+                bit_buffer >>= 8
+                value_digits -= 8
 
     def plot(self, x, y, color):
         if 0 <= x < self.width and 0 <= y < self.height:

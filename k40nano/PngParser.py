@@ -102,36 +102,34 @@ def is_on(sample):
         return not sample[0]
 
 
-def parse_png(f, controller):
+def parse_png(f, transaction, spread=1):
     if isinstance(f, str):
         with open(f, "rb") as f:
-            parse_png(f, controller)
+            parse_png(f, transaction)
             return
-    increment = 4
-    step = 4
+    increment = spread
+    step = spread
     on_count = 0
     off_count = 0
-    speed = 75.0
-    controller.set_speed(speed)
     for scanline in png_scanlines(f):
         if increment < 0:
             scanline = reversed(scanline)
         for i in scanline:
             if is_on(i):
                 if off_count != 0:
-                    controller.move(off_count, 0, slow=True, laser=False)
+                    transaction.move(off_count, 0, laser=False, slow=True)
                     off_count = 0
                 on_count += increment
             else:
                 if on_count != 0:
-                    controller.move(on_count, 0, slow=True, laser=True)
+                    transaction.move(on_count, 0, laser=True, slow=True)
                     on_count = 0
                 off_count += increment
         if off_count != 0:
-            controller.move(off_count, 0, slow=True, laser=False)
+            transaction.move(off_count, 0, laser=False, slow=True)
             off_count = 0
         if on_count != 0:
-            controller.move(on_count, 0, slow=True, laser=True)
+            transaction.move(on_count, 0, laser=True, slow=True)
             on_count = 0
-        controller.move(0, step, slow=True, laser=False)
+        transaction.move(0, step, laser=False, slow=True)
         increment = -increment
