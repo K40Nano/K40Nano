@@ -3,75 +3,74 @@ Decoupled and extended low level support for K40, derived from K40 Whisperer.
 
 K40Nano is intended to pull out the low level support from K40Whisperer ( https://github.com/jkramarz/K40-Whisperer (not the author's github, there isn't an author's github)) and give it helpful and proper encapsolation and a functional low level API. Making this functionality more direct, understandable, and extendable for everybody.
 
-
-* Not fully tested. Recent upgrade and early version of the fully API'd version, not yet fully tested.
-
 API
 ---
-The Controller.py class contains the relevant API for controlling the laser. The NanoController has the NanoConnection and various relevant .EGV writing information.
+The NanoController class contains the relevant API for controlling the laser. Mostly it is called start() which provides an instance of a NanoTransaction which largely does turns the API calls into EGV data. Since a lot of the interfacing is guess work and incorrect sequences of commands can easily lead to undefined behavior. The NanoTransaction uses these specific states:
 
-The core commands are:
-* move(dx, dy, slow=False, laser=False):
-    * Moves to new relative location either at the set speed or rapidly with or without the laser engaged.
-* move_abs(x, y, slow=False, laser=False):
-    * Moves to new absolute location either at the set speed or rapidly with or without the laser engaged.
-* set_speed(speed=None, raster_step=None):
-    * Sets the speed
+![nano](https://user-images.githubusercontent.com/3302478/50603178-7abe6400-0e6e-11e9-9ef5-dee6d053a762.png)
+
+The API transaction calls are:
+* start()
+    * Initializes the transaction.
+* move(dx, dy, laser=False, slow=False, absolute=False):
+    * Moves the device, either at full speed or slowed, with or without the laser on. At either relative or absolute positioning.
+* set_speed(speed):
+    * Sets the speed. This should accept either a speedcode or a feedrate (float).
+* set_step(step):
+    * Sets the raster-step. The Nano board can go right and left and step-y at the transitions.
+* increase_speed(increase):
+   * Set the speed relative to the previous speed.
+* finish()
+     * Finishes the transaction.
+
+The additional commands in NanoController are:
+* start():
+* write(data):
+* close(transaction=None):
 * home():
-    * Homes the device.
 * rail(lock=False):
-    * Locks or unlocks the rail
 * wait():
-    * Waits until all operations are done.
-* halt():
-    * Aborts current operations.
-* release():
-    * terminates the controller.
-    
-The API should contain all relevant methods to interact with the laser, namely move to a place at a speed, with or without the laser. A few speciality commands like home and unlock rail are also needed. These should be devoid of the information about the state stored within the NanoController (or any controller) so you can perform a rapid move at anytime or a slow move at anytime or cut at any speed and then cut at a different speed while the controller seemlessly switches between the various modes.
+* finish():
 
-    controller = NanoController()
-    controller.home() # resets the machine to home.
-    controller.move(500, 500) # moves head down and right by 0.5 inches.
-    controller.move(100,100,True,True) # performs a diagonal 0.1 inches cut with the laser.
-    controller.release()
+The main function of the Transactions are to give you access to the only really important function, move() which controls the device. Some of the other functionalities are useful at points and thus are exposed.
 
-And that should work for basically everything. It should give a proper programatic interface for the laser interactions.
+An API should contain all relevant methods to interact with the laser, namely move to a place at a speed, with or without the laser. A few speciality commands like home and unlock rail are also needed. These should be devoid of the information about the state stored within the NanoController (or any controller) so you can perform a rapid move at anytime or a slow move at anytime or cut at any speed and then cut at a different speed while the controller seemlessly switches between the various modes.
 
-Controllers
+This likely needs some more smoothing over and refining. But, it's getting pretty reasonable.
+
+Other Transactions
 ---
-
-There are several controllers other than the NanoController which properly takes the control commands and turns them into EGV commands. Mostly these are for debugging purposes, but currently we can export a PNG file with PngController, an SVG with SvgController, and we can dump the EGV data by feeding the NanoController a FileWriteConnection rather than having it open a default NanoConnection.
+There are several Transactions other than the NanoController's Transactions which properly takes the control the API commands and turns them into something other than EGV data. These are most for debugging purposes, but currently it can export a PNG file with PngTransaction, an SVG with SvgTransaction, and we can dump the EGV data by feeding the NanoController a FileWriteConnection rather than having it open a default NanoConnection.
 
 
 Parsers
 ---
-There are a few basic parser classes these take a filename or fileobject and a controller. `parse_png` within the `PngParser` class parses a Png file scanline by scanline and feeds that information into the controller, it does this directly via by reading the PNG directly, and iterating through the file and returning the relevant commands scanline by scanline.
+There are a few basic parser classes these take a filename or fileobject and a controller. `parse_png` within the `PngParser` class parses a Png file scanline by scanline and feeds that information into a Transaction, it does this directly via by reading the PNG directly, and iterating through the file and returning the relevant commands scanline by scanline, while it's busy reading it (to be nice to memory footprint)
 
-`parse_egv` within the `EgvParser` class reads the egv file and turns the EGV file into controller commands sent to the API. The `NanoController` would then turn these commands back into .egv data. This might seem a bit odd but, it allows all interations to deal with the API exclusively thereby allowing it to know the exact state of the machine at all times. And allows other parsed elements to work as first order objects. And allow various shortcuts and data consolidations to happen seemlessly.
+`parse_egv` within the `EgvParser` class reads the egv file and turns sends commands to the API. The `NanoTransaction` would then turn these commands back into .egv data. This might seem a bit odd but, it allows all interations to deal with the API exclusively thereby allowing it to know the exact state of the machine at all times. And allows other parsed elements to work as first order objects. And allow various shortcuts and data consolidations to happen seemlessly. So additional vector classes are merely a parser away.
 
 Several other parsers can be added along these same lines, basically anything that takes in vector-like data. The idea being simply accept a filename or fileobject then parse that applying the relevant core commands to the API and having it handled from there, and all properly encapsolated and isolated.
 
 CLI
 ---
-* Latest version doesn't have the CLI fully tested. It's a pretty major revision.
-* The input png files don't have a speed commands yet.
-
-The included CLI, Nano, (which is not intended to be exclusive or definitative, but go ahead and ask more to be built on it) is built on the concept of a stack. Namely you have a list of commands you can list them with (-l), you can load files with a wildcard "-i \*.EGV" and it should load those files. So for example, if you wanted to run a series of 25 jobs, with 30 seconds between each. You would call "Nano.py -m <x> <y> -e -i my_job.egv -w 30 -p 25 -e" which would add a rapid move to the stack, execute that, add my_job.egv to the stack, add a wait 30 seconds to the stack then duplicate the stack 25 times, allowing you to perform an automated task (or burn the same thing 25 times, with a little bit of cool off time).
-
-* -i [\<file-name-\*\>]\*, loads egv/png files
-* -o [\<file-name-\*\>]\*, export file type
+The included CLI, Nano, (which is not intended to be exclusive or definitative, but go ahead and ask more to be built on it) is built on the concept of a stack. Namely you have a list of commands you can list them with (-l), you can load files with a wildcard "-i \*.EGV" and it should load those files. So for example, if you wanted to run a series of 25 jobs, with 30 seconds between each. You would call "Nano.py -m <x> <y> -e -i my_job.egv -w 30 -p 25 -e" which would add a rapid move to the stack, execute that, add my_job.egv to the stack, add a wait 30 seconds to the stack then duplicate the stack 25 times, allowing you to perform an automated task (or burn the same thing 25 times, with a some amount of switching / cool off time).
+* -i [\<input-\*\>]\*, loads egv/png files
+* -o [<egv/png/svg>|"print"|"mock"]?, sets output method
 * -p [n], sets the number of passes
-* -m [dx] [dy], move command
+* -m ([dx] [dy])+, relative move command
+* -M ([x] [y])+, absolute move command
+* -c ([dx] [dy])+, relative cut command
+* -C ([x] [y])+, absolute cut command
+* -s [+/-]?<speed> [step]*, sets the speed
 * -w [seconds], wait_time
-* -e, executes egv stack
-* -l, lists egv stack
+* -e, executes stack
+* -l, lists stack
 * -r, resets to home position
 * -u, unlock rail
+* -U, lock rail
+* -v, verbose mode (default)
 * -q, quiet mode
-* -v, verbose mode
 * -h, display this message
-
 
 Example call:
 
@@ -90,9 +89,6 @@ This calls Nano which is the CLI:
 
 Calling the input on a PNG file will perform the raster-engrave commands of the scanlines of the PNG file. The program calls the PngParser which parses the scanlines line-by-line and converts the scanlines into controller commands. 
 
-NanoController
----
-The NanoController makes a connection, and builds and sends various compatable calls to the device. It complies with the API interfacing and doesn't include any additional add commands as such.
 
 NanoConnection
 ---
