@@ -13,5 +13,5 @@ class TestNanoController(unittest.TestCase):
         transaction.finish()
         with open("test.egv", "r+") as f:
             line = f.readline()
-            self.assertEqual("BaRa", line)
+            self.assertEqual("IBaRaS1P", line)
         self.addCleanup(os.remove, "test.egv")

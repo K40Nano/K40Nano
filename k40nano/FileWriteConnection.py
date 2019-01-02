@@ -13,11 +13,14 @@ class FileWriteConnection:
         self.write_buffer()
 
     def write_completed_packets(self, data):
-        if self.f is not None:
-            self.f.write(data.decode("utf-8"))
+        if self.f is None:
+            self.f = open(self.filename, "w")
+        self.f.write(data.decode("utf-8"))
 
     def write_buffer(self):
-        pass
+        self.f.flush()
+        self.f.close()
+        self.f = None
 
     def append(self, data):
         if self.f is not None:
