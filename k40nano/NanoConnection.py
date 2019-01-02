@@ -49,7 +49,8 @@ def crc_8bit_onewire(line):
 
 
 class NanoConnection:
-    def __init__(self):
+    def __init__(self, usb=None):
+        self.usb = usb
         self.PACKET_SIZE = 30
         self.buffer = b''
         self.position = 0
@@ -70,7 +71,6 @@ class NanoConnection:
         self.RESPONSE_TASK_COMPLETE = 236
         self.RESPONSE_UNKNOWN_2 = 239  # after failed initialization followed by successful initialization
         self.RESPONSE_ERROR_UNKNOWN = 9999  # Unknown response.
-        self.usb = None
 
     def write(self, data):
         """
@@ -125,14 +125,12 @@ class NanoConnection:
         """
         self.buffer += data
 
-    def connect(self, usb=None):
+    def connect(self):
         """
         Connects to the USB device.
         """
-        if usb is None:
+        if self.usb is None:
             self.usb = Usb()
-        else:
-            self.usb = usb
         self.usb.initialize()
 
     def disconnect(self):
@@ -142,7 +140,7 @@ class NanoConnection:
         self.usb.release_usb()
 
     def make_valid_packet(self, packet):
-        p = [166] + [0] + ([ord('L')] * self.PACKET_SIZE) + [166] + [0]
+        p = [166] + [0] + ([ord('F')] * self.PACKET_SIZE) + [166] + [0]
         for i in range(0, len(packet)):
             v = packet[i]
             if isinstance(v, str):  # if python_2

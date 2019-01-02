@@ -34,9 +34,6 @@ class Transaction:
     def finish(self):
         pass
 
-    def pop(self):
-        pass
-
     def check_bounds(self):
         self.min_x = min(self.min_x, self.current_x)
         self.min_y = min(self.min_y, self.current_y)

@@ -327,6 +327,5 @@ class Nano:
 
 
 argv = sys.argv
-# argv = "-o hello.png -s 75 -m 50 50 -e -c 1in 0 0 1in -1in 0 0 -1in -p 5".split(" ")
 nano = Nano(argv)
 nano.execute()

@@ -28,8 +28,8 @@ class NanoController:
     def __init__(self, connect=None, laser_board=None, usb=None):
         self.connection = connect
         if self.connection is None:
-            self.connection = NanoConnection()
-        self.connection.connect(usb)
+            self.connection = NanoConnection(usb)
+        self.connection.connect()
         self.board = laser_board
         if self.board is None:
             self.board = LaserM2()
@@ -68,18 +68,18 @@ class NanoController:
 
     def home(self):
         transaction = self.start()
-        transaction.write("P")
-        transaction.pop()
+        transaction.write("PP")
+        transaction.finish()
         self.current_x = 0
         self.current_y = 0
 
     def rail(self, lock=False):
         transaction = self.start()
         if not lock:
-            transaction.write("S2")
+            transaction.write("S2P")
         else:
-            transaction.write("S1")
-        transaction.pop()
+            transaction.write("S1P")
+        transaction.finish()
 
     def wait(self):
         self.connection.wait()
