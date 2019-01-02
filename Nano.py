@@ -8,7 +8,7 @@ import time
 
 from k40nano import *
 
-NANO_VERSION = "0.0.3"
+NANO_VERSION = "0.0.4"
 
 
 class NanoCommand:
@@ -90,7 +90,7 @@ class Nano:
             if command not in self.command_lookup:
                 continue
             values = self.command_lookup[command](values)
-        self.control().release()
+        self.control().finish()
 
     def control(self):
         if self.controller is None:
@@ -228,40 +228,36 @@ class Nano:
 
     def command_list(self, values):
         print("disabled briefly.")
+        # todo: recode this
         return values
 
     def command_execute(self, values):
         self.log("Executing:", len(values))
+        transaction = self.control().start()
         for value in values:
             if value.pos is not None:
                 for pos in value.pos:
-                    if value.cut:
-                        if value.abs:
-                            self.control().move_abs(pos[0], pos[1], True, True)
-                            self.control().wait()
-                        else:
-                            self.control().move(pos[0], pos[1], True, True)
-                            self.control().wait()
-                    else:
-                        if value.abs:
-                            self.control().move_now(pos[0], pos[1], True)
-                        else:
-                            self.control().move_now(pos[0], pos[1])
+                    transaction.move(pos[0], pos[1], value.cut, value.cut, value.abs)
             if value.wait != 0:
                 time.sleep(value.wait)
             if value.speed is not None:
                 if value.abs:
-                    self.control().set_speed(value.speed)
+                    transaction.set_speed(value.speed)
                 else:
-                    self.control().increase_speed(value.speed)
+                    transaction.increase_speed(value.speed)
             if value.filename is not None:
                 fname = str(value.filename).lower()
                 if fname.endswith("egv"):
-                    parse_egv(value.filename, self.control())
+                    parse_egv(value.filename, transaction)
                 elif fname.endswith("png"):
-                    parse_png(value.filename, self.control())
+                    parse_png(value.filename, transaction)
+                transaction.finish()
+                transaction = self.control().start()
             if value.command is not None:
+                transaction.finish()
                 value.command()
+                transaction = self.control().start()
+        transaction.finish()
         return []
 
     def command_home(self, values):
@@ -302,10 +298,10 @@ class Nano:
         else:
             value = str(value).lower()
             if value.endswith("svg"):
-                self.controller = SvgController(value)
+                self.controller = SvgTransaction(open(value, "w+"))
                 self.log("SvgController")
             elif value.endswith("png"):
-                self.controller = PngController(value)
+                self.controller = PngTransaction(open(value, "wb+"))
                 self.log("PngController")
             elif value.endswith("egv"):
                 self.controller = NanoController(FileWriteConnection(value))
@@ -328,5 +324,6 @@ class Nano:
 
 
 argv = sys.argv
+# argv = "-o hello.png -s 75 -m 50 50 -e -c 1in 0 0 1in -1in 0 0 -1in -p 5".split(" ")
 nano = Nano(argv)
 nano.execute()

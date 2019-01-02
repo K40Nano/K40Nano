@@ -2,6 +2,15 @@
 
 from .NanoConstants import *
 
+MODE_SLOW = 0b00000001  # Slow mode
+MODE_SPEED_SET = 0b00000010  # Speed set
+MODE_LASER_ON = 0b00000100  # Laser On
+MODE_DIRECTION_LEFT = 0b00001000  # Going -X
+MODE_DIRECTION_TOP = 0b00010000  # Going -Y
+MODE_FINISHING = 0b00100000  # Finishing.
+MODE_RESET = 0b01000000  # Reset
+MODE_STARTED = 0b10000000
+
 
 class EgvParser:
     def __init__(self):
@@ -63,126 +72,92 @@ class EgvParser:
         self.distance += amount
 
 
-class EgvInterpreter:
-    def __init__(self, controller):
-        self.controller = controller
-        self.distance_x = 0
-        self.distance_y = 0
-        self.mode = 0
-        self.speedcode = ""
-
-    def commit_moves(self):
-        d_laser = self.mode & MODE_LASER_ON
-        d_slow = self.mode & MODE_SLOW
-        if self.mode & MODE_DIRECTION_LEFT:
-            dx = -self.distance_x
-        else:
-            dx = self.distance_x
-        if self.mode & MODE_DIRECTION_TOP:
-            dy = -self.distance_y
-        else:
-            dy = self.distance_y
-        if dx != 0 or dy != 0:
-            self.controller.move(dx, dy, d_slow, d_laser)
-        self.distance_x = 0
-        self.distance_y = 0
-
-    def get_slow(self):
-        return self.mode & MODE_SLOW
-
-    def get_laser(self):
-        return self.mode & MODE_LASER_ON
-
-    def set_mode(self, mask, set_value):
-        if set_value:
-            self.mode |= mask
-        else:
-            self.mode &= ~mask
-
-
-def parse_egv(f, controller):
+def parse_egv(f, transaction):
     parser = EgvParser()
     if isinstance(f, str):
         with open(f, "rb") as f:
-            parse_egv(f, controller)
+            parse_egv(f, transaction)
             return
     parser.skip_header(f)
-    egv = EgvInterpreter(controller)
 
+    speed_code = ""
+    raster_step = 0
+    is_slow = False
+    is_on = False
+    is_left = False
+    is_top = False
     for commands in parser.parse(f):
         cmd = commands[0]
+        distance = commands[1] + commands[2]
         if cmd is None:
             return
         elif cmd == COMMAND_RIGHT:  # move right
-            slow = egv.get_slow()
-            laser = egv.get_laser()
-            egv.distance_x += commands[1] + commands[2]
-            egv.set_mode(MODE_DIRECTION_LEFT, False)
-            if slow or laser:
-                egv.commit_moves()
+            if is_left:
+                transaction.move(distance, raster_step, is_on, is_slow)
+            else:
+                transaction.move(distance, 0, is_on, is_slow)
+            is_left = False
         elif cmd == COMMAND_LEFT:  # move left
-            slow = egv.get_slow()
-            laser = egv.get_laser()
-            egv.distance_x += commands[1] + commands[2]
-            egv.set_mode(MODE_DIRECTION_LEFT, True)
-            if slow or laser:
-                egv.commit_moves()
+            if not is_left:
+                transaction.move(-distance, raster_step, is_on, is_slow)
+            else:
+                transaction.move(-distance, 0, is_on, is_slow)
+            is_left = True
         elif cmd == COMMAND_TOP:  # move top
-            slow = egv.get_slow()
-            laser = egv.get_laser()
-            egv.distance_y += commands[1] + commands[2]
-            egv.set_mode(MODE_DIRECTION_TOP, True)
-            if slow or laser:
-                egv.commit_moves()
+            transaction.move(0, -distance, is_on, is_slow)
+            is_top = True
         elif cmd == COMMAND_BOTTOM:  # move bottom
-            slow = egv.get_slow()
-            laser = egv.get_laser()
-            egv.distance_y += commands[1] + commands[2]
-            egv.set_mode(MODE_DIRECTION_TOP, False)
-            if slow or laser:
-                egv.commit_moves()
+            transaction.move(0, distance, is_on, is_slow)
+            is_top = False
         elif cmd == COMMAND_ANGLE:
-            slow = egv.get_slow()
-            laser = egv.get_laser()
-            distance = commands[1] + commands[2]
-            egv.distance_y += distance
-            egv.distance_x += distance
-            if slow or laser:
-                egv.commit_moves()
+            if is_left:
+                distance_x = -distance
+            else:
+                distance_x = distance
+            if is_top:
+                distance_y = -distance
+            else:
+                distance_y = distance
+            transaction.move(distance_x, distance_y, is_on, is_slow)
         elif cmd == COMMAND_ON:  # laser on
-            egv.set_mode(MODE_LASER_ON, True)
+            is_on = True
         elif cmd == COMMAND_OFF:  # laser off
-            egv.set_mode(MODE_LASER_ON, False)
+            is_on = False
         elif cmd == COMMAND_S:  # s command
             pass
         elif cmd == COMMAND_E:  # slow
-            egv.commit_moves()
-            egv.set_mode(MODE_SLOW, True)
+            is_slow = True
         elif cmd == COMMAND_P:  # pop
-            egv.set_mode(MODE_SLOW, False)
-            egv.commit_moves()
+            is_slow = False
         elif cmd == COMMAND_INTERRUPT:  # interrupt
-            controller.halt()
+            is_slow = False
+            is_on = False
         elif cmd == COMMAND_FINISH:  # finish
-            egv.commit_moves()
-            controller.wait()
+            transaction.finish()
         elif cmd == COMMAND_CUT:  # cut
-            controller.set_step(0)
-            egv.speedcode += str(COMMAND_CUT)
+            raster_step = 0
+            transaction.set_step(raster_step)
+            if raster_step == 0:
+                code = "CV%s" % str(speed_code)
+            else:
+                code = "V%sG%03d" % (str(speed_code), raster_step)
+            transaction.set_speed(code)
         elif cmd == COMMAND_SPEED:  # velocity
-            egv.speedcode += str(COMMAND_SPEED) + str(commands[2])
-            controller.set_speed(egv.speedcode)
+            speed_code = str(commands[2])
+            if raster_step == 0:
+                code = "CV%s" % str(speed_code)
+            else:
+                code = "V%sG%03d" % (str(speed_code), raster_step)
+            transaction.set_speed(code)
         elif cmd == COMMAND_STEP:  # engrave
-            controller.set_step(commands[2])
-            stepcode = "G%03d" % commands[2]
-            egv.speedcode += stepcode
-            controller.set_speed(egv.speedcode)
+            raster_step = commands[2]
+            transaction.set_step(raster_step)
+            if raster_step == 0:
+                code = "CV%s" % str(speed_code)
+            else:
+                code = "V%sG%03d" % (str(speed_code), raster_step)
+            transaction.set_speed(code)
         elif cmd == COMMAND_NEXT:  # next
-            egv.commit_moves()
-            egv.set_mode(MODE_SLOW, False)
-            egv.set_mode(MODE_LASER_ON, False)
-            egv.speedcode = ""
+            is_slow = False
         elif cmd == COMMAND_RESET:  # reset
-            egv.commit_moves()
-            egv.set_mode(MODE_SLOW, False)
-            egv.speedcode = ""
+            is_slow = False
