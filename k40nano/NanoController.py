@@ -25,11 +25,11 @@ from .NanoTransaction import NanoTransaction
 
 
 class NanoController:
-    def __init__(self, connect=None, laser_board=None):
+    def __init__(self, connect=None, laser_board=None, usb=None):
         self.connection = connect
         if self.connection is None:
             self.connection = NanoConnection()
-        self.connection.connect()
+        self.connection.connect(usb)
         self.board = laser_board
         if self.board is None:
             self.board = LaserM2()

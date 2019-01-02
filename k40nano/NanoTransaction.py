@@ -73,6 +73,7 @@ class NanoTransaction(Transaction):
             self.is_speed_set = True
         elif self.is_speed_changed:
             if self.is_slow:
+                self.laser_off()
                 self.writer.write(COMMAND_RESET)
                 self.writer.write(COMMAND_NEXT + COMMAND_S + COMMAND_E)
                 if self.speedcode is not None:
@@ -154,6 +155,7 @@ class NanoTransaction(Transaction):
             return
         if self.is_finishing:
             return
+        self.laser_off()
         self.is_finishing = True
         if not self.is_speed_set:
             self.write(b'S1')

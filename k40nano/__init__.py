@@ -6,6 +6,7 @@ from .NanoController import NanoController
 from .NanoConnection import NanoConnection
 from .FileWriteConnection import FileWriteConnection
 from .PrintConnection import PrintConnection
+from .MockUsb import MockUsb
 
 from .EgvParser import parse_egv
 from .PngParser import parse_png

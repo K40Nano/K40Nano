@@ -125,11 +125,14 @@ class NanoConnection:
         """
         self.buffer += data
 
-    def connect(self):
+    def connect(self, usb=None):
         """
         Connects to the USB device.
         """
-        self.usb = Usb()
+        if usb is None:
+            self.usb = Usb()
+        else:
+            self.usb = usb
         self.usb.initialize()
 
     def disconnect(self):
