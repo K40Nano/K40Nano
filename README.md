@@ -29,8 +29,7 @@ Calling "S1P" triggers instant execution ignores any commands that occur after t
 * S2E: Goes weird, but sometimes returns the device just to the left (might be rehomed device with an unlocked rail).
 
 
-![nano new](https://user-images.githubusercontent.com/3302478/50628181-cbc06d80-0eeb-11e9-91e6-26ab2c9b3fbd.png)
-
+![nano-new](https://user-images.githubusercontent.com/3302478/50664116-de28be80-0f60-11e9-8e7d-ca4cf5c5f6ba.png)
 API:
 
 The NanoController class contains the relevant API for controlling the laser. Mostly it is called start() which provides an instance of a NanoTransaction which largely does turns the API calls into EGV data. Since a lot of the interfacing is guess work and incorrect sequences of commands can easily lead to undefined behavior. The NanoTransaction uses these specific states:
