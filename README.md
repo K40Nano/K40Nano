@@ -12,21 +12,21 @@ Switching to compact mode uses S1E. Switching into and out of this mode will res
 
 Calling "S1P" triggers instant execution ignores any commands that occur after that. So this is usually used for 1 off commands like move right "IR(distance)S1P" then the rest of commands in the packet don't matter unless 1 of them is another P. Whenever there are two P commands in the same packet the device reset. If these are in different packets they won't behave this way. S2P works like S1P but unlocks the rail so it moves more freely.
 
-I: Deletes the buffer. Any commands currently in the stack are deleted. This includes all commands preceeding the I within the same packet. This does not reset any modes. Turning the laser on with IDS1P then sending any additional I commands does not turn the laser off.
-R,L: +Y, -Y direction flags. Set the direction flags for execution of the directional magnatude.
-B,T: +X, -X direction flags. Set the direction flags for execution of the directional magnatude.
-M: In compact mode, performs a 45° move in the direciton of the last set direction flags. (Does nothing in default, +R with no flag sets)
-D,U: Laser On and Laser Off. Can be done in default or compact. Leaving or entering compact mode turns the laser off.
-C,G: Cut, Raster_Step. Can be set in default mode (in any order at any point in default), these seem to cancel each other out.
-V: Speedcode. Differs a bit by controller board, making some EGV files generally less compatable with each other as they are board dependent.
-@: Resets modes. Set all the set modes to the default values. Behaves strangely in default mode.
-F: Finishes. Behaves strongly in default. In compact, requires NSE to take effect. Waits until task is complete then signals the TASK_COMPLETE flag.
-N: Flushes command and executes in default mode, in compact mode, causes the mode to end (but in a somewhat non-understood way).
-S1E: Triggers Compact Mode.
-S1P: Executes command, ignores rest of packet.
-PP: If within the same packet, causes the device to rehome and all states to be deleted.
-S2P: works like S1P but does not lock the rail.
-S2E: Goes weird, but sometimes returns the device just to the left (might be rehomed device with an unlocked rail).
+* I: Deletes the buffer. Any commands currently in the stack are deleted. This includes all commands preceeding the I within the same packet. This does not reset any modes. Turning the laser on with IDS1P then sending any additional I commands does not turn the laser off.
+* R,L: +Y, -Y direction flags. Set the direction flags for execution of the directional magnatude.
+* B,T: +X, -X direction flags. Set the direction flags for execution of the directional magnatude.
+* M: In compact mode, performs a 45° move in the direciton of the last set direction flags. (Does nothing in default, +R with no flag sets)
+* D,U: Laser On and Laser Off. Can be done in default or compact. Leaving or entering compact mode turns the laser off.
+* C,G: Cut, Raster_Step. Can be set in default mode (in any order at any point in default), these seem to cancel each other out.
+* V: Speedcode. Differs a bit by controller board, making some EGV files generally less compatable with each other as they are board dependent.
+* @: Resets modes. Set all the set modes to the default values. Behaves strangely in default mode.
+* F: Finishes. Behaves strongly in default. In compact, requires NSE to take effect. Waits until task is complete then signals the TASK_COMPLETE flag.
+* N: Flushes command and executes in default mode, in compact mode, causes the mode to end (but in a somewhat non-understood way).
+* S1E: Triggers Compact Mode.
+* S1P: Executes command, ignores rest of packet.
+* PP: If within the same packet, causes the device to rehome and all states to be deleted.
+* S2P: works like S1P but does not lock the rail.
+* S2E: Goes weird, but sometimes returns the device just to the left (might be rehomed device with an unlocked rail).
 
 
 ![nano new](https://user-images.githubusercontent.com/3302478/50628181-cbc06d80-0eeb-11e9-91e6-26ab2c9b3fbd.png)
