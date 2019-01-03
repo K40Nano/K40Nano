@@ -1,13 +1,39 @@
 # K40Nano
 Decoupled and extended low level support for K40, derived from K40 Whisperer.
 
-K40Nano is intended to pull out the low level support from K40Whisperer ( https://github.com/jkramarz/K40-Whisperer (not the author's github, there isn't an author's github)) and give it helpful and proper encapsolation and a functional low level API. Making this functionality more direct, understandable, and extendable for everybody.
+K40Nano is intended to pull out the low level support from K40Whisperer ( https://github.com/jkramarz/K40-Whisperer (not the author's github, there isn't an author's github)) and give it a helpful and proper encapsolation and a functional low level API. Making this functionality more direct, understandable, and extendable for everybody.
 
-API
+LHYMICRO-GL Format
 ---
-The NanoController class contains the relevant API for controlling the laser. Mostly it is called start() which provides an instance of a NanoTransaction which largely does turns the API calls into EGV data. Since a lot of the interfacing is guess work and incorrect sequences of commands can easily lead to undefined behavior. The NanoTransaction uses these specific states:
 
-![nano](https://user-images.githubusercontent.com/3302478/50603178-7abe6400-0e6e-11e9-9ef5-dee6d053a762.png)
+A fully working version requires some mapping of the permitted states and the commands to get to those states. There are primarily two different modes for the Nano board. Default and Compact. These modes share some of the same commands and states, but are for two different purposes. In default, we can set the speed, cut/raster step, laser operation, and direction flags. All the commands operate as a bulk set, and the final flag is the used mode. The X magnatude and Y magnatude are independent of each other, and combine values. can be a 3 digit number, |<lowercase-letter>, <lowercase-letter> with z being a slightly special case of being +256 rather than +26. But, the last flag gets the magnatude so "RzzzzL" in default mode assigns the 1024 mils of distance to the "L" command (Top / -Y direction). Setting the laser in default can leave the laser on without the head moving. Sending "IDS1P" will simply turn the laser on. Sending "IUS1P" will turn the laser off. The default state for the laser is off so "I@S1P" will also reset the states and turn the laser off, and clear the other states, like direction, speed, raster step. The commands in default are executed with N. It is best to execute anything remaining a command state before switching modes or doing something that might object to some left over magnatude. So RzzTzzN is a diagonal move. All moves in default-mode are performed at full speed
+
+Switching to compact mode uses S1E. Switching into and out of this mode will reset the laser position. and will always utilize the speed value and step values set with V and C/G. Within compact the permitted commands are D,U,L,R,T,B,M,F,@ anything else will likely cause the mode to stop and often can result in non-understood behaviors. When you exit S1E mode exit command (F or @) will be relevant only after doing "NSE" the N will flush and SE sends the mode. If we send the F command, then the state is locked until the commands finish and querying the device returns a TASK_COMPLETE signal. If we send a @ command then we are reset and must set the correct modes again. Within compact mode, every command is executed when it's sent. So D turns the laser on. Rzz moves +Y zz (512 mils) immediately. To perform a diagonal the M command is added (in default it does the same as no command, causing the momentum to be assigned to R (+Y) and executed. The diagonal M is the in the last x direction set and last y direction set. So "RLTB" is LB and goes (+x,-y). It is very often customary to assign these values just before S1E so flush the commands (we don't want our mode sets to affect the previous command if there is one so "NXYS1E") then RBS1E setting the flags for M to be known rather than whatever their state happened to be. These could also be set during compact mode by simply calling RB before the M.
+
+Calling "S1P" triggers instant execution ignores any commands that occur after that. So this is usually used for 1 off commands like move right "IR(distance)S1P" then the rest of commands in the packet don't matter unless 1 of them is another P. Whenever there are two P commands in the same packet the device reset. If these are in different packets they won't behave this way. S2P works like S1P but unlocks the rail so it moves more freely.
+
+I: Deletes the buffer. Any commands currently in the stack are deleted. This includes all commands preceeding the I within the same packet. This does not reset any modes. Turning the laser on with IDS1P then sending any additional I commands does not turn the laser off.
+R,L: +Y, -Y direction flags. Set the direction flags for execution of the directional magnatude.
+B,T: +X, -X direction flags. Set the direction flags for execution of the directional magnatude.
+M: In compact mode, performs a 45° move in the direciton of the last set direction flags. (Does nothing in default, +R with no flag sets)
+D,U: Laser On and Laser Off. Can be done in default or compact. Leaving or entering compact mode turns the laser off.
+C,G: Cut, Raster_Step. Can be set in default mode (in any order at any point in default), these seem to cancel each other out.
+V: Speedcode. Differs a bit by controller board, making some EGV files generally less compatable with each other as they are board dependent.
+@: Resets modes. Set all the set modes to the default values. Behaves strangely in default mode.
+F: Finishes. Behaves strongly in default. In compact, requires NSE to take effect. Waits until task is complete then signals the TASK_COMPLETE flag.
+N: Flushes command and executes in default mode, in compact mode, causes the mode to end (but in a somewhat non-understood way).
+S1E: Triggers Compact Mode.
+S1P: Executes command, ignores rest of packet.
+PP: If within the same packet, causes the device to rehome and all states to be deleted.
+S2P: works like S1P but does not lock the rail.
+S2E: Goes weird, but sometimes returns the device just to the left (might be rehomed device with an unlocked rail).
+
+
+![nano new](https://user-images.githubusercontent.com/3302478/50628181-cbc06d80-0eeb-11e9-91e6-26ab2c9b3fbd.png)
+
+API:
+
+The NanoController class contains the relevant API for controlling the laser. Mostly it is called start() which provides an instance of a NanoTransaction which largely does turns the API calls into EGV data. Since a lot of the interfacing is guess work and incorrect sequences of commands can easily lead to undefined behavior. The NanoTransaction uses these specific states:
 
 The API transaction calls are:
 * start()
