@@ -74,17 +74,17 @@ Also, keep in mind that the down() and up() commands are, in rapid-mode, rapid-c
 
 Parsers
 ---
-In a real sense the parsers are an end product rather than something that is properly an API but these are given as solid examples of how things should work.
+In a real sense the parsers are an end product than part of an API but these are given as solid examples of how things can work.
 
 There are a couple basic parser classes these take a filename or fileobject and a controller. `parse_png` within the `PngParser` class parses a png file scanline by scanline and feeds that information to the Plotter, it does this directly via by reading the PNG directly, and iterating through the file and returning the relevant commands as it reads the file. There's very little memory footprint and even a tiny device can write a massive file.
 
 `parse_egv` within the `EgvParser` class reads the egv file and applies that to the Plotter. The `NanoPlotter` would then turn these commands back into .egv data and send it to the laser. Since the only way we interact is through the API, the .EGV files do not have any special priority. They are simply files containing vector data, and are treated as such. This is required because NanoPlotter needs to know the current state, so it cannot have something else altering that state without it knowing.
 
-Several other parsers could be added along these same lines, basically anything that takes in vector-like data. The idea being simply accept a filename or fileobject then parse that applying the relevant commands to the API and having it the API handle it. It's all properly encapsulated and isolated.
+Several other parsers could be added along these same lines, basically anything that takes in vector-like data. The idea being simply accept a filename or fileobject then parse that applying the relevant commands to the API and having it the API handle it. It's all properly encapsulated and isolated. But, if you wanted to rig up joystick to control the K40, you could do that with a few lines of code and the API commands, parsers are a typical uses case example.
 
 CLI (Command Line Interface)
 ---
-The API is nice, but we will likely just want the functionality. I've provided a Nano CLI. This is not intended to be exclusive or definitative, but go ahead and ask more to be built on it (raise an issue). It is built on the concept of a stack. Namely you have a list of commands you can list them with (-l), you can load files with a wildcard "-i \*.EGV" and it should load those files. So for example, if you wanted to run a series of 25 jobs, with 30 seconds between each. You would call "Nano.py -m <x> <y> -e -i my_job.egv -w 30 -p 25 -e" which would add a move to the stack, execute that, add my_job.egv to the stack, add a wait of 30 seconds to the stack then duplicate the stack 25 times, allowing you to perform an automated task (or burn the same thing 25 times, with a some amount of switching / cool off time).
+I've provided a Nano CLI. This is not intended to be exclusive or definitative, but go ahead and ask more to be built on it (raise an issue). It is built on the concept of a stack. Namely you have a list of commands you can list them with (-l), you can load files with a wildcard "-i \*.EGV" and it should load those files. So for example, if you wanted to run a series of 25 jobs, with 30 seconds between each. You would call "Nano.py -m <x> <y> -e -i my_job.egv -w 30 -p 25 -e" which would add a move to the stack, execute that, add my_job.egv to the stack, add a wait of 30 seconds to the stack then duplicate the stack 25 times, allowing you to perform an automated task (or burn the same thing 25 times, with a some amount of switching / cool off time).
  
 * -i [\<input-\*\>]\*, loads egv/png files
 * -o [<egv/png/svg>|"print"|"mock"]?, sets output method
@@ -151,7 +151,7 @@ The coordinate system is that the origin is in the upper left corners and all Y 
 Documentation
 ---
 
-Contributions to this project may require a certain amount of understanding of the formatting used. While the goal is to make that understand not required for the end user. They should be able to simply add the module, import NanoPlotter and then send it a bunch of commands and have it just work. Contributing to the core of the project or fixing a bug or misunderstanding or improving it or porting it to another language, may require a much more in depth understanding, so I have documented the format to the best of my understanding. 
+Contributions to this project may require a certain amount of understanding of the formatting used. While the goal is to make that understanding not required for the programmer or end user. They should be able to simply add the module, import NanoPlotter and then send it a bunch of commands and have it just work. Contributing to the core of the project or fixing a bug or misunderstanding or improving it or porting it to another language, may require a much more in depth understanding, so I have documented the format to the best of my understanding. 
 
 
 LHYMICRO-GL Format
