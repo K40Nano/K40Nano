@@ -1,7 +1,18 @@
 # K40Nano
 Decoupled and extended low level support for K40, derived from K40 Whisperer.
 
-K40Nano is intended to pull out the low level support from K40Whisperer ( https://github.com/jkramarz/K40-Whisperer (not the author's github, there isn't an author's github)) and give it a helpful and proper encapsolation and a functional low level API. Making this functionality more direct, understandable, and extendable for everybody.
+K40Nano is intended to pull out the low level support from K40Whisperer ( https://github.com/jkramarz/K40-Whisperer (not the author's github, there isn't an author's github)) and give it a helpful and proper encapsulation and a functional low level API. Making this functionality more direct, understandable, and extendable for everybody.
+
+Project Status
+---
+Almost there. The API should be mostly stable, so how interactions are done should not change. There are likely a number of bugs still. And while some version of the code has been working here or there other errors may have cropped up. I'm hoping to test things and debug them in the next few days. Running the code with a mock output `-o mock` seems to produce quite reasonable egv data that a machine would have no trouble executing. Equally some commands like `Nano -o baby.svg -i baby.png` has no trouble converting a black and white image of a baby into an svg file of lines that looks like the given image.
+
+Some other elements like the Parsers and CLI seem to generally work but might still need some tweaks and adjustments these are somewhat less important. These could be removed from the project. So could the additional debug connections (PrintConnection, and FileWriteConnection) and debug plotters (SvgPlotter, PngPlotter). The actual essential files are NanoUsb, NanoConnection, and NanoPlotter.
+
+Compatibility
+---
+K40Nano should be compatible with both Python 2.7 and 3.6.
+
 
 API:
 ---
@@ -26,7 +37,7 @@ Connections try to mimic a file-like object, and they have:
 Plotters
 ---
 
-The primary way to interact with with the API though is through the plotters. This is modelled after old pen plotters from which the `LHYMICRO-GL` encoding is derived. As such the it is the best, simpliest, and most natural way to interact with the K40.
+The primary way to interact with with the API though is through the plotters. This is modelled after old pen plotters from which the `LHYMICRO-GL` encoding is derived. As such it is the best, simplest, and most natural way to interact with the K40.
  
 Plotters have:
 * open()
@@ -67,13 +78,14 @@ In a real sense the parsers are an end product rather than something that is pro
 
 There are a couple basic parser classes these take a filename or fileobject and a controller. `parse_png` within the `PngParser` class parses a png file scanline by scanline and feeds that information to the Plotter, it does this directly via by reading the PNG directly, and iterating through the file and returning the relevant commands as it reads the file. There's very little memory footprint and even a tiny device can write a massive file.
 
-`parse_egv` within the `EgvParser` class reads the egv file and applies that to the Plotter. The `NanoPlotter` would then turn these commands back into .egv data and send it to the laser. Since the only way we interact is through the API, the .EGV files do not have any special priority. They are simply files containing vector data, and are treated as such. This is requried because NanoPlotter needs to know the current state, so it cannot have something else altering that state without it knowing.
+`parse_egv` within the `EgvParser` class reads the egv file and applies that to the Plotter. The `NanoPlotter` would then turn these commands back into .egv data and send it to the laser. Since the only way we interact is through the API, the .EGV files do not have any special priority. They are simply files containing vector data, and are treated as such. This is required because NanoPlotter needs to know the current state, so it cannot have something else altering that state without it knowing.
 
-Several other parsers could be added along these same lines, basically anything that takes in vector-like data. The idea being simply accept a filename or fileobject then parse that applying the relevant commands to the API and having it the API handle it. It's all properly encapsolated and isolated.
+Several other parsers could be added along these same lines, basically anything that takes in vector-like data. The idea being simply accept a filename or fileobject then parse that applying the relevant commands to the API and having it the API handle it. It's all properly encapsulated and isolated.
 
 CLI (Command Line Interface)
 ---
-The API is nice, but we will likely just want the functionality. I've provided a Nano CLI. This is not intended to be exclusive or definitative, but go ahead and ask more to be built on it. It is built on the concept of a stack. Namely you have a list of commands you can list them with (-l), you can load files with a wildcard "-i \*.EGV" and it should load those files. So for example, if you wanted to run a series of 25 jobs, with 30 seconds between each. You would call "Nano.py -m <x> <y> -e -i my_job.egv -w 30 -p 25 -e" which would add a rapid move to the stack, execute that, add my_job.egv to the stack, add a wait 30 seconds to the stack then duplicate the stack 25 times, allowing you to perform an automated task (or burn the same thing 25 times, with a some amount of switching / cool off time).
+The API is nice, but we will likely just want the functionality. I've provided a Nano CLI. This is not intended to be exclusive or definitative, but go ahead and ask more to be built on it (raise an issue). It is built on the concept of a stack. Namely you have a list of commands you can list them with (-l), you can load files with a wildcard "-i \*.EGV" and it should load those files. So for example, if you wanted to run a series of 25 jobs, with 30 seconds between each. You would call "Nano.py -m <x> <y> -e -i my_job.egv -w 30 -p 25 -e" which would add a move to the stack, execute that, add my_job.egv to the stack, add a wait of 30 seconds to the stack then duplicate the stack 25 times, allowing you to perform an automated task (or burn the same thing 25 times, with a some amount of switching / cool off time).
+ 
 * -i [\<input-\*\>]\*, loads egv/png files
 * -o [<egv/png/svg>|"print"|"mock"]?, sets output method
 * -p [n], sets the number of passes
@@ -100,19 +112,21 @@ This calls Nano which is the CLI:
 * -r: goes to home position
 * -m 2000 2000: moves +2 inches +2 inches
 * -e: executes those commands requested thus far.
-* -i \*.EGV: inputs all the EGV files in the local directory (only test_engrave.EGV)
+* -i \test_engrave.EGV: inputs that file
 * -m 750 0: moves +0.75 inches right.
 * -p 5: performs 5 passes of the current stack. Namely, the one loaded file, and the move command.
 * -m -3750 750: moves -3.75 inches left, and 0.75 inches down.
 * -p 5: performs 5 passes of the current stack. Namely, the 5x line, and the move to the next row.
 * -e: executes those commands requested thus far.
 
-Calling the input on a PNG file will perform the raster-engrave commands of the scanlines of the PNG file. The program calls the PngParser which parses the scanlines line-by-line and converts the scanlines into controller commands. 
+Calling the input on a PNG file will perform the raster-engrave commands of the scanlines of the PNG file. The program calls the PngParser.
+
+The CLI will also accept some units like `-m 2in 2in` or `-c 33mm 7mm` (in, mm, cm, ft (there cannot be a space between the number and the unit))
 
 
 NanoConnection
 ---
-We are connecting to a specific board on a K40 machine, and interacting across the USB cable. The connection class wraps whatever packets it's given and process them in the correct manner. It shouldn't know anything about what's in the packets just packetizes them and does the interaction with the USB. It should internally deal with timeouts, CRC error resends, and making and appending the CRC bytes to the packets, etc. These interactions should not need to be known outside of the class.
+We are connecting to a specific board on a K40 machine, and interacting across the USB cable. The connection class wraps whatever data it's given and process that data. No class using NanoConnection needs to know anything more, it seamlessly packetizes the data them and does the interaction with the USB. It deals with timeouts, CRC error resends, and making and appending the CRC bytes to the packets, etc. These interactions should not need to be known outside of the class.
 
 NanoUsb
 ---
@@ -121,7 +135,7 @@ Encloses the USB classes, keep in mind this code is identical to K40 Whisperer a
 
 MockUsb
 ---
-Fake USB class for testing purposes. If `pyusb` is not properly setup the NanoUsb should fail and replace with the MockUsb largely for testing purposes.
+Fake USB class for testing purposes. If `pyusb` is not properly setup the NanoUsb should fail and replace with the MockUsb largely for testing purposes. It can also be specified in the the open of NanoConnection to use the MockUsb instead.
 
 
 Units
@@ -131,14 +145,17 @@ The code throughout uses mils (1/1000th of an inch) so the units in the CLI are 
 
 Coordinate System
 ---
-The coordinate system is that the origin is in the upper left corners and all Y locations are DOWN. Which is to say higher Y values mean lower on the device. This is similar to all modern graphics system, but seemingly different than `K40 Whisperer` which strongly implies that all Y values are negative. Internally the commands are all relative with a positive magnatude so this is a choice.
+The coordinate system is that the origin is in the upper left corners and all Y locations are DOWN. Which is to say higher Y values mean lower on the device. This is similar to all modern graphics system, but seemingly different than `K40 Whisperer` which seemed to strongly imply that all Y values are negative. Internally the commands are all relative with a positive magnitude so this is a choice.
 
+
+Documentation
+---
+
+Contributions to this project may require a certain amount of understanding of the formatting used. While the goal is to make that understand not required for the end user. They should be able to simply add the module, import NanoPlotter and then send it a bunch of commands and have it just work. Contributing to the core of the project or fixing a bug or misunderstanding or improving it or porting it to another language, may require a much more in depth understanding, so I have documented the format to the best of my understanding. 
 
 
 LHYMICRO-GL Format
 ---
-
-Contributions to this project may require a certain amount of understanding of the formatting used.
 
 A fully working version requires some mapping of the permitted states and the commands to get to those states, then the API should be crafted to approximate those states. There are primarily two different modes for the Nano board: default and compact (可压缩). These modes share some of the same commands and states, but work in some fundamentally different ways.
 
