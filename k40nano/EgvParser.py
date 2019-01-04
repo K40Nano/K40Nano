@@ -1,15 +1,23 @@
 #!/usr/bin/env python
 
-from .NanoConstants import *
+COMMAND_RIGHT = b'B'
+COMMAND_LEFT = b'T'
+COMMAND_TOP = b'L'
+COMMAND_BOTTOM = b'R'
 
-MODE_SLOW = 0b00000001  # Slow mode
-MODE_SPEED_SET = 0b00000010  # Speed set
-MODE_LASER_ON = 0b00000100  # Laser On
-MODE_DIRECTION_LEFT = 0b00001000  # Going -X
-MODE_DIRECTION_TOP = 0b00010000  # Going -Y
-MODE_FINISHING = 0b00100000  # Finishing.
-MODE_RESET = 0b01000000  # Reset
-MODE_STARTED = 0b10000000
+COMMAND_ANGLE = b'M'
+COMMAND_ON = b'D'
+COMMAND_OFF = b'U'
+COMMAND_NEXT = b'N'
+COMMAND_S = b'S'
+COMMAND_P = b'P'
+COMMAND_E = b'E'
+COMMAND_INTERRUPT = b'I'
+COMMAND_SPEED = b'V'
+COMMAND_CUT = b'C'
+COMMAND_FINISH = b'F'
+COMMAND_STEP = b'G'
+COMMAND_RESET = b'@'
 
 
 class EgvParser:
@@ -19,14 +27,15 @@ class EgvParser:
         self.number_value = 0
 
     @staticmethod
-    def skip(file, byte, count):
-        pos = file.tell()
+    def skip(read, byte, count):
+        """Skips forward in the file until we find <count> instances of <byte>"""
+        pos = read.tell()
         while count > 0:
-            char = file.read(1)
+            char = read.read(1)
             if char == byte:
                 count -= 1
             if char is None or len(char) == 0:
-                file.seek(pos, 0)
+                read.seek(pos, 0)
                 # If we didn't skip the right stuff, reset the position.
                 break
 
@@ -72,43 +81,77 @@ class EgvParser:
         self.distance += amount
 
 
-def parse_egv(f, transaction):
-    parser = EgvParser()
+def parse_egv(f, plotter):
+    egv_parser = EgvParser()
     if isinstance(f, str):
         with open(f, "rb") as f:
-            parse_egv(f, transaction)
+            parse_egv(f, plotter)
             return
-    parser.skip_header(f)
+    egv_parser.skip_header(f)
 
     speed_code = ""
-    raster_step = 0
-    is_slow = False
+    value_g = 0
+    is_compact = False
     is_on = False
     is_left = False
     is_top = False
-    for commands in parser.parse(f):
+    is_speed = False
+    is_cut = False
+    is_harmonic = False
+
+    for commands in egv_parser.parse(f):
         cmd = commands[0]
         distance = commands[1] + commands[2]
         if cmd is None:
             return
         elif cmd == COMMAND_RIGHT:  # move right
-            if is_left:
-                transaction.move(distance, raster_step, is_on, is_slow)
+            if is_compact and is_harmonic and is_left:
+                if is_top:
+                    dy = -value_g
+                else:
+                    dy = value_g
+                plotter.up()
+                is_on = False
+                plotter.move(distance, dy)
             else:
-                transaction.move(distance, 0, is_on, is_slow)
+                plotter.move(distance, 0)
             is_left = False
         elif cmd == COMMAND_LEFT:  # move left
-            if not is_left:
-                transaction.move(-distance, raster_step, is_on, is_slow)
+            if is_compact and is_harmonic and not is_left:
+                if is_top:
+                    dy = -value_g
+                else:
+                    dy = value_g
+                plotter.up()
+                is_on = False
+                plotter.move(-distance, dy)
             else:
-                transaction.move(-distance, 0, is_on, is_slow)
+                plotter.move(-distance, 0)
             is_left = True
-        elif cmd == COMMAND_TOP:  # move top
-            transaction.move(0, -distance, is_on, is_slow)
-            is_top = True
         elif cmd == COMMAND_BOTTOM:  # move bottom
-            transaction.move(0, distance, is_on, is_slow)
+            if is_compact and is_harmonic and is_top:
+                if is_left:
+                    dx = -value_g
+                else:
+                    dx = value_g
+                plotter.up()
+                is_on = False
+                plotter.move(dx, distance)
+            else:
+                plotter.move(0, distance)
             is_top = False
+        elif cmd == COMMAND_TOP:  # move top
+            if is_compact and is_harmonic and not is_top:
+                if is_left:
+                    dx = -value_g
+                else:
+                    dx = value_g
+                plotter.up()
+                is_on = False
+                plotter.move(dx, -distance)
+            else:
+                plotter.move(0, -distance)
+            is_top = True
         elif cmd == COMMAND_ANGLE:
             if is_left:
                 distance_x = -distance
@@ -118,37 +161,50 @@ def parse_egv(f, transaction):
                 distance_y = -distance
             else:
                 distance_y = distance
-            transaction.move(distance_x, distance_y, is_on, is_slow)
+            plotter.move(distance_x, distance_y)
         elif cmd == COMMAND_ON:  # laser on
             is_on = True
+            plotter.down()
         elif cmd == COMMAND_OFF:  # laser off
             is_on = False
+            plotter.up()
         elif cmd == COMMAND_S:  # s command
             pass
         elif cmd == COMMAND_E:  # slow
-            is_slow = True
+            # compact_mode command is only for NanoPlotter.
+            try:
+                plotter.enter_compact_mode(speed=speed_code, harmonic_step=value_g)
+            except AttributeError:
+                pass
+            is_compact = True
         elif cmd == COMMAND_P:  # pop
-            is_slow = False
+            is_compact = True
         elif cmd == COMMAND_INTERRUPT:  # interrupt
-            is_slow = False
-            is_on = False
+            pass
         elif cmd == COMMAND_FINISH:  # finish
-            transaction.finish()
+            plotter.close()
         elif cmd == COMMAND_CUT:  # cut
-            raster_step = 0
-            transaction.set_step(raster_step)
-            code = "CV%s" % str(speed_code)
-            transaction.set_speed(code)
+            is_harmonic = False
+            is_cut = True
+            value_g = 0
+            speed_code += COMMAND_CUT
         elif cmd == COMMAND_SPEED:  # velocity
-            speed_code = str(commands[2])
-            code = "CV%s" % str(speed_code)
-            transaction.set_speed(code)
+            is_speed = True
+            speed_code += str(commands[2])
         elif cmd == COMMAND_STEP:  # engrave
-            raster_step = commands[2]
-            transaction.set_step(raster_step)
-            code = "CV%s" % str(speed_code)
-            transaction.set_speed(code)
+            value_g = commands[2]
+            speed_code += "G%03d" % value_g
         elif cmd == COMMAND_NEXT:  # next
-            is_slow = False
+            try:
+                plotter.exit_compact_mode()
+            except AttributeError:
+                pass
+            is_compact = False
         elif cmd == COMMAND_RESET:  # reset
-            is_slow = False
+            is_compact = False
+            is_on = False
+            is_left = False
+            is_top = False
+            is_speed = False
+            is_cut = False
+            is_harmonic = False

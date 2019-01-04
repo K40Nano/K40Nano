@@ -29,6 +29,8 @@ try:
 except:
     from .MockUsb import MockUsb as Usb
 
+from .Connection import Connection
+
 
 def crc_8bit_onewire(line):
     """
@@ -48,8 +50,9 @@ def crc_8bit_onewire(line):
     return crc
 
 
-class NanoConnection:
+class NanoConnection(Connection):
     def __init__(self, usb=None):
+        Connection.__init__(self)
         self.usb = usb
         self.PACKET_SIZE = 30
         self.buffer = b''
@@ -72,18 +75,18 @@ class NanoConnection:
         self.RESPONSE_UNKNOWN_2 = 239  # after failed initialization followed by successful initialization
         self.RESPONSE_ERROR_UNKNOWN = 9999  # Unknown response.
 
-    def write(self, data):
+    def send(self, data):
         """
-        Writes all data immediately to the K40 device. Final packet is padded with TOP commands (L).
+        Writes all data immediately to the K40 device.
         :param data:
         :return:
         """
-        self.write_completed_packets(data)
-        self.write_buffer()
+        self.write(data)
+        self.flush()
 
-    def write_completed_packets(self, data=None):
+    def write(self, data=None):
         """
-        Writes complete packet data immediately to the K40 device. Buffers the remaining.
+        Buffers data, sending any complete packets to the device immediately to the K40 device.
         :param data:
         :return:
         """
@@ -102,9 +105,9 @@ class NanoConnection:
             self.send_valid_packet(self.buffer)
             self.buffer = b''
 
-    def write_buffer(self):
+    def flush(self):
         """
-        Writes all buffered data immediately to the K40 device. Final packet is padded with TOP commands (L).
+        Writes all buffered data immediately.
         :param data:
         :return:
         """
@@ -117,15 +120,15 @@ class NanoConnection:
             self.send_valid_packet(chunk)
         self.buffer = b''
 
-    def append(self, data):
+    def buffer(self, data):
         """
-        Appends data to the buffered data.
+        Appends data to the buffer.
         :param data:
         :return:
         """
         self.buffer += data
 
-    def connect(self):
+    def open(self):
         """
         Connects to the USB device.
         """
@@ -133,7 +136,7 @@ class NanoConnection:
             self.usb = Usb()
         self.usb.initialize()
 
-    def disconnect(self):
+    def close(self):
         """
         Disconnects from USB device.
         """
@@ -168,7 +171,7 @@ class NanoConnection:
         :param packet: 0-30 bytes as int list.
         :return:
         """
-        self.usb.write(packet)
+        self.usb.send(packet)
 
     def send_packet(self, packet):
         """
@@ -182,7 +185,7 @@ class NanoConnection:
         buffer_count = 0
         while True:
             try:
-                self.usb.write(packet)
+                self.usb.send(packet)
             except Exception:
                 timeout_count += 1
                 if timeout_count >= self.MAX_TIMEOUTS:
@@ -228,7 +231,7 @@ class NanoConnection:
         timeout_count = 0
         while True:
             try:
-                self.usb.write(self.HELLO)
+                self.usb.send(self.HELLO)
             except Exception:
                 timeout_count += 1
                 if timeout_count >= self.MAX_TIMEOUTS:
@@ -237,7 +240,7 @@ class NanoConnection:
 
     def read_response(self):
         """
-        Reads the status response from the device, retrying as necessary.
+        Reads the status response from the device.
         :return: status response.
         """
         while True:

@@ -86,7 +86,7 @@ class PngRaster:
 
     @staticmethod
     def get_stride(sample_count, bit_depth, width):
-        return int(ceil(bit_depth * sample_count * width / 8.0))
+        return int(ceil(bit_depth * sample_count * float(width) / 8.0))
 
     @staticmethod
     def get_sample_count(color_type):
@@ -130,7 +130,7 @@ class PngRaster:
 
     def get_samples(self):
         for scanline in self.buf:
-            yield self.as_samples(self.bit_depth,self.get_sample_count(self.color_type),scanline)
+            yield self.as_samples(self.bit_depth, self.get_sample_count(self.color_type), scanline)
 
     @staticmethod
     def read_png_chunks(file):
@@ -154,7 +154,7 @@ class PngRaster:
         pixel_length_in_bits = bit_depth * sample_count
         bit_depth_mask = (1 << bit_depth) - 1
         mask_sample_bits = (1 << pixel_length_in_bits) - 1
-        total_samples = int(((len(scanline)-1) * 8) / pixel_length_in_bits)
+        total_samples = int(((len(scanline) - 1) * 8) / pixel_length_in_bits)
         for i in range(0, total_samples):
             start_pos_in_bits = (i * pixel_length_in_bits) + 8
             end_pos_in_bits = start_pos_in_bits + pixel_length_in_bits - 1
@@ -196,8 +196,13 @@ class PngRaster:
                 data = file.read(length)
                 width = struct.unpack(">I", data[0:4])[0]
                 # height = struct.unpack(">I", data[4:8])[0]
+
                 bit_depth = data[8]
+                if isinstance(bit_depth, str):
+                    bit_depth = ord(bit_depth)
                 color_type = data[9]
+                if isinstance(color_type, str):
+                    color_type = ord(color_type)
                 sample_count = PngRaster.get_sample_count(color_type)
                 stride = PngRaster.get_stride(sample_count, bit_depth, width) + 1
                 file.seek(4, 1)  # skip crc
@@ -317,7 +322,7 @@ class PngRaster:
         for scanline in self.buf:
             value_digits = scanline_remainder
             bit_buffer = 0
-            for pos in range(scanline_length_in_bytes-1, 0, -1):
+            for pos in range(scanline_length_in_bytes - 1, 0, -1):
                 while value_digits < 8:
                     bit_buffer |= (color << value_digits)
                     value_digits += color_length_in_bits

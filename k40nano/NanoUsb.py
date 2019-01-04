@@ -78,18 +78,15 @@ class NanoUsb:
     def read(self):
         return self.device.read(self.READ_ADDRESS, self.READ_LENGTH, self.TIMEOUT)[1]
 
-    def write(self, packet):
-        ps = ""
-        for p in packet:
-            ps += chr(p)
-        self.device.write(self.WRITE_ADDRESS, packet, self.TIMEOUT)
+    def send(self, packet):
+        self.device.send(self.WRITE_ADDRESS, packet, self.TIMEOUT)
 
 
 if __name__ == "__main__":
     connection = NanoUsb()
     connection.initialize()
-    connection.write([160])
-    connection.write([166, 0, 73, 80, 80, 70, 70, 70,
+    connection.send([160])
+    connection.send([166, 0, 73, 80, 80, 70, 70, 70,
                       70, 70, 70, 70, 70, 70, 70, 70,
                       70, 70, 70, 70, 70, 70, 70, 70,
                       70, 70, 70, 70, 70, 70, 70, 70,

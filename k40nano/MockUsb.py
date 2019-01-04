@@ -46,13 +46,16 @@ class MockUsb:
         print("Device Reset")
 
     def release_usb(self):
-        self.device = None
-        print("Device Released")
+        if self.device is None:
+            print("Device already released.")
+        else:
+            self.device = None
+            print("Device Released")
 
     def read(self):
         return self.device.get_mock_read_value()
 
-    def write(self, packet):
+    def send(self, packet):
         self.device.do_mock_write(packet)
 
     def get_mock_read_value(self):
@@ -73,9 +76,9 @@ class MockUsb:
 if __name__ == "__main__":
     connection = MockUsb()
     connection.initialize()
-    connection.write([160])
-    connection.write([166, 0, 73, 80, 80, 70, 70, 70,
-                      70, 70, 70, 70, 70, 70, 70, 70,
-                      70, 70, 70, 70, 70, 70, 70, 70,
-                      70, 70, 70, 70, 70, 70, 70, 70,
-                      166, 228])
+    connection.send([160])
+    connection.send([166, 0, 73, 80, 80, 70, 70, 70,
+                     70, 70, 70, 70, 70, 70, 70, 70,
+                     70, 70, 70, 70, 70, 70, 70, 70,
+                     70, 70, 70, 70, 70, 70, 70, 70,
+                     166, 228])

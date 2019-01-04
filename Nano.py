@@ -8,27 +8,31 @@ import time
 
 from k40nano import *
 
-NANO_VERSION = "0.0.4"
+NANO_VERSION = "0.0.5"
 
 
 class NanoCommand:
     def __init__(self):
+        self.title = None
         self.wait = 0
-        self.cut = False
-        self.abs = False
-        self.pos = None
-        self.filename = None
+        self.use_laser = False
+        self.absolute = False
+        self.positions = None
+        self.input_file = None
         self.command = None
         self.speed = None
 
 
 class Nano:
     def __init__(self, arguments):
-        self.controller = None
+        self.plotter = None
         self.log = print
+        self.speed = None
+        if arguments is None:
+            arguments = []
         arguments.append("-e")  # always execute the stack.
         self.elements = list(reversed(arguments))
-        if len(arguments) == 1:
+        if len(arguments) == 2:
             self.elements = ["-h"]
         self.command_lookup = {
             "-i": self.command_input,
@@ -90,20 +94,17 @@ class Nano:
             if command not in self.command_lookup:
                 continue
             values = self.command_lookup[command](values)
-        self.control().finish()
-
-    def control(self):
-        if self.controller is None:
-            self.controller = NanoController()
-        return self.controller
+        if self.plotter is not None:
+            self.plotter.close()
 
     def command_input(self, values):
         v = self.v()
         input_files = glob.glob(v)
         for input_file in input_files:
             m = NanoCommand()
-            self.log("File:", input_file)
-            m.filename = input_file
+            m.title = "File:" + input_file
+            self.log(m.title)
+            m.input_file = input_file
             values.append(m)
         return values
 
@@ -121,7 +122,8 @@ class Nano:
 
     def command_move(self, values):
         m = NanoCommand()
-        m.pos = []
+        m.positions = []
+        m.title = "Move Relative: "
         while True:
             x = self.v()
             if x is None:
@@ -131,16 +133,18 @@ class Nano:
                 break
             x = self.unit_convert(x)
             y = self.unit_convert(y)
-            m.pos.append([x, y])
-            self.log("Move Relative:", x, y)
-        m.cut = False
-        m.abs = False
+            m.positions.append([x, y])
+            m.title += "(%i,%i) " % (x, y)
+        self.log(m.title)
+        m.use_laser = False
+        m.absolute = False
         values.append(m)
         return values
 
     def command_move_abs(self, values):
         m = NanoCommand()
-        m.pos = []
+        m.positions = []
+        m.title = "Move Absolute: "
         while True:
             x = self.v()
             if x is None:
@@ -150,16 +154,18 @@ class Nano:
                 break
             x = self.unit_convert(x)
             y = self.unit_convert(y)
-            m.pos.append([x, y])
-            self.log("Move Absolute:", x, y)
-        m.cut = False
-        m.abs = True
+            m.positions.append([x, y])
+            m.title += "(%i,%i) " % (x, y)
+        self.log(m.title)
+        m.use_laser = False
+        m.absolute = True
         values.append(m)
         return values
 
     def command_cut(self, values):
         m = NanoCommand()
-        m.pos = []
+        m.positions = []
+        m.title = "Cut Relative: "
         while True:
             x = self.v()
             if x is None:
@@ -169,16 +175,18 @@ class Nano:
                 break
             x = self.unit_convert(x)
             y = self.unit_convert(y)
-            m.pos.append([x, y])
-            self.log("Cut Relative:", x, y)
-        m.cut = True
-        m.abs = False
+            m.positions.append([x, y])
+            m.title += "(%i,%i) " % (x, y)
+        self.log(m.title)
+        m.use_laser = True
+        m.absolute = False
         values.append(m)
         return values
 
     def command_cut_abs(self, values):
         m = NanoCommand()
-        m.pos = []
+        m.positions = []
+        m.title = "Cut Absolute: "
         while True:
             x = self.v()
             if x is None:
@@ -188,10 +196,11 @@ class Nano:
                 break
             x = self.unit_convert(x)
             y = self.unit_convert(y)
-            m.pos.append([x, y])
-            self.log("Cut Absolute:", x, y)
-        m.cut = True
-        m.abs = True
+            m.positions.append([x, y])
+            m.title += "(%i,%i) " % (x, y)
+        self.log(m.title)
+        m.use_laser = True
+        m.absolute = True
         values.append(m)
         return values
 
@@ -199,13 +208,16 @@ class Nano:
         m = NanoCommand()
         speed = self.v()
         if speed.startswith("-"):
-            m.abs = False
+            m.absolute = False
+            m.title = "Change Speed by: -%f" % float(speed)
         elif speed.startswith("+"):
-            m.abs = False
+            m.absolute = False
+            m.title = "Change Speed by: +%f" % float(speed)
         else:
-            m.abs = True
+            m.absolute = True
+            m.title = "Speed: %f" % float(speed)
         m.speed = float(speed)
-        self.log("Speed:", speed)
+        self.log(m.title)
         values.append(m)
         return values
 
@@ -213,7 +225,9 @@ class Nano:
         m = NanoCommand()
         m.wait = float(self.v())
         values.append(m)
-        self.log("Wait:", m.wait)
+        m.title = "Pause for: %f seconds" % str(m.wait)
+        self.log(m.title)
+        values.append(m)
         return values
 
     def command_passes(self, values):
@@ -227,90 +241,130 @@ class Nano:
         return new_values
 
     def command_list(self, values):
-        print("disabled briefly.")
-        # todo: recode this
+        for value in values:
+            if value.title is not None:
+                print(value.title)
         return values
+
+    def get_plotter(self):
+        if self.plotter is None:
+            self.plotter = NanoPlotter()
+            self.plotter.open()
+        return self.plotter
 
     def command_execute(self, values):
         self.log("Executing:", len(values))
-        transaction = self.control().start()
         for value in values:
-            if value.pos is not None:
-                for pos in value.pos:
-                    transaction.move(pos[0], pos[1], value.cut, value.cut, value.abs)
+            if value.positions is not None:
+                plotter = self.get_plotter()
+                if self.speed is not None:
+                    try:
+                        plotter.enter_compact_mode(value.speed)
+                    except AttributeError:
+                        pass
+                if value.use_laser:
+                    plotter.down()
+                for pos in value.positions:
+                    if value.absolute:
+                        self.plotter.move_abs(pos[0], pos[1])
+                    else:
+                        self.plotter.move(pos[0], pos[1])
+                if value.use_laser:
+                    plotter.up()
             if value.wait != 0:
                 time.sleep(value.wait)
             if value.speed is not None:
-                if value.abs:
-                    transaction.set_speed(value.speed)
+                plotter = self.get_plotter()
+                if value.absolute:
+                    new_speed = value.speed
                 else:
-                    transaction.increase_speed(value.speed)
-            if value.filename is not None:
-                fname = str(value.filename).lower()
+                    new_speed = self.speed + value.speed
+                if new_speed != value.speed:
+                    try:
+                        plotter.exit_compact_mode_reset()
+                    except AttributeError:
+                        pass
+                self.speed = new_speed
+            if value.input_file is not None:
+                fname = str(value.input_file).lower()
                 if fname.endswith("egv"):
-                    parse_egv(value.filename, transaction)
+                    plotter = self.get_plotter()
+                    parse_egv(value.input_file, plotter)
                 elif fname.endswith("png"):
-                    parse_png(value.filename, transaction)
-                transaction.finish()
-                transaction = self.control().start()
+                    plotter = self.get_plotter()
+                    parse_png(value.input_file, plotter)
             if value.command is not None:
-                transaction.finish()
                 value.command()
-                transaction = self.control().start()
-        transaction.finish()
         return []
 
     def command_home(self, values):
-        self.log("Home Position")
         m = NanoCommand()
+        m.title = "Home Position"
+        self.log(m.title)
         m.command = self.home_function
         values.append(m)
         return values
 
-    def home_function(self):
-        self.control().home()
-
     def command_unlock(self, values):
-        self.log("Unlock Rail")
         m = NanoCommand()
+        m.title = "Unlock Rail"
+        self.log(m.title)
         m.command = self.unlock_function
         values.append(m)
         return values
 
-    def unlock_function(self):
-        self.control().rail(False)
-
     def command_lock(self, values):
-        self.log("Lock Rail")
         m = NanoCommand()
+        m.title = "Lock Rail"
+        self.log(m.title)
         m.command = self.lock_function
         values.append(m)
         return values
 
+    def home_function(self):
+        try:
+            self.plotter.home()
+        except AttributeError:
+            pass
+
+    def unlock_function(self):
+        try:
+            self.plotter.unlock_rail()
+        except AttributeError:
+            pass
+
     def lock_function(self):
-        self.control().rail(True)
+        try:
+            self.plotter.lock_rail()
+        except AttributeError:
+            pass
 
     def command_output(self, values):
         value = self.v()
         if value is None:
-            self.controller = NanoController()
+            self.plotter = NanoPlotter()
             self.log("NanoController")
         else:
             value = str(value).lower()
             if value.endswith("svg"):
-                self.controller = SvgTransaction(open(value, "w+"))
+                self.plotter = SvgPlotter(value)
+                self.plotter.open()
                 self.log("SvgController")
             elif value.endswith("png"):
-                self.controller = PngTransaction(open(value, "wb+"))
+                self.plotter = PngPlotter(open(value, "wb+"))
+                self.plotter.open()
                 self.log("PngController")
             elif value.endswith("egv"):
-                self.controller = NanoController(FileWriteConnection(value))
+                self.plotter = NanoPlotter()
+                self.plotter.open(connect=FileWriteConnection(value))
                 self.log("EgvNanoController")
             elif value == "print":
-                self.controller = NanoController(PrintConnection())
+                self.plotter = NanoPlotter()
+                self.plotter.open(connect=PrintConnection())
                 self.log("PrintNanoController")
             elif value == "mock":
-                self.controller = NanoController(usb=MockUsb())
+                self.plotter = NanoPlotter()
+                self.plotter.open(usb=MockUsb())
                 self.log("MockUsb NanoController")
         return values
 
@@ -327,5 +381,7 @@ class Nano:
 
 
 argv = sys.argv
+#argv = "-o testing.svg -m 2in 2in -s 75 -r -e -s +1 -c 10 0 -p 5 -e".split(" ")
+argv = "-i baby.png -o testing.svg -e".split(" ")
 nano = Nano(argv)
 nano.execute()
