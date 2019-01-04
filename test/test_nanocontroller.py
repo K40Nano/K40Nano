@@ -7,11 +7,12 @@ from k40nano import *
 class TestNanoController(unittest.TestCase):
 
     def test_nano_controller(self):
-        controller = NanoController(FileWriteConnection("test"))
-        transaction = controller.start()
-        transaction.move(1, 1)
-        transaction.finish()
+        filename = "test.egv"
+        plotter = NanoPlotter()
+        plotter.open(connect=FileWriteConnection(filename))
+        plotter.move(1, 1)
+        plotter.close()
         with open("test.egv", "r+") as f:
             line = f.readline()
             self.assertEqual("IBaRaS1P", line)
-        self.addCleanup(os.remove, "test.egv")
+        self.addCleanup(os.remove, filename)

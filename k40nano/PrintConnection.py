@@ -2,36 +2,18 @@
 
 from __future__ import print_function
 
+from .Connection import Connection
 
-class PrintConnection:
 
-    def write(self, data):
+class PrintConnection(Connection):
+
+    def __init__(self):
+        Connection.__init__(self)
+
+    def write(self, data=None):
+        """
+        Buffers data, sending any complete packets.
+        :param data:
+        :return:
+        """
         print(data)
-
-    def write_completed_packets(self, data):
-        print(data)
-
-    def write_buffer(self):
-        pass
-
-    def append(self, data):
-        print(data)
-
-    def connect(self):
-        pass
-
-    def disconnect(self):
-        pass
-
-    def send_valid_packet(self, packet):
-        print("Send Packet: ", packet)
-
-    def send_hello(self):
-        print("Sending Hello.")
-
-    def wait(self):
-        print("Attempting Wait.")
-
-    def read_response(self):
-        print("Read Response")
-        return 206

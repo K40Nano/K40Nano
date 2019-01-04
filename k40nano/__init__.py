@@ -1,11 +1,12 @@
 
-from .Transaction import Transaction
-from .SvgTransaction import SvgTransaction
-from .PngTransaction import PngTransaction
-from .NanoController import NanoController
+from .SvgPlotter import SvgPlotter
+from .PngPlotter import PngPlotter
+from .NanoPlotter import NanoPlotter
+
 from .NanoConnection import NanoConnection
 from .FileWriteConnection import FileWriteConnection
 from .PrintConnection import PrintConnection
+
 from .MockUsb import MockUsb
 
 from .EgvParser import parse_egv

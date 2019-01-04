@@ -1,6 +1,9 @@
+#!/usr/bin/env python
+
+
 from xml.etree.cElementTree import Element, ElementTree, SubElement
 
-from .Transaction import Transaction
+from .Plotter import Plotter
 
 NAME_SVG = "svg"
 NAME_GROUP = "g"
@@ -23,31 +26,14 @@ ATTR_STROKE_WIDTH = "stroke-width"
 VALUE_NONE = "none"
 
 
-class SvgTransaction(Transaction):
-    def __init__(self, filename=None):
-        Transaction.__init__(self, filename)
+class SvgPlotter(Plotter):
+    def __init__(self, writer=None):
+        Plotter.__init__(self)
+        self.write_object = writer
         self.segment_values = []
 
-    def move(self, dx, dy, laser=False, slow=False, absolute=False):
-        if absolute:
-            self.move(dx - self.current_x, dy - self.current_y, laser, slow, absolute=False)
-            return
-        next_x = self.current_x + dx
-        next_y = self.current_y + dy
-        if laser:
-            self.check_bounds()
-            self.segment_values.append([self.current_x, self.current_y, next_x, next_y])
-        self.current_x = next_x
-        self.current_y = next_y
-        self.check_bounds()
-
-    def finish(self):
-        self.pop()
-
-    def pop(self):
+    def close(self):
         if len(self.segment_values) == 0:
-            return
-        if self.writer is None:
             return
         root = Element(NAME_SVG)
         root.set(ATTR_VERSION, VALUE_SVG_VERSION)
@@ -75,6 +61,16 @@ class SvgTransaction(Transaction):
         except MemoryError:
             pass
         tree = ElementTree(root)
-        tree.write(self.writer)
-        self.writer.close()
-        self.writer = None
+        tree.write(self.write_object)
+        self.segment_values = []
+
+    def move(self, dx, dy):
+        if self.pen_down:
+            self.segment_values.append(
+                [
+                    self.current_x,
+                    self.current_y,
+                    self.current_x + dx,
+                    self.current_y + dy,
+                ])
+        Plotter.move(self, dx, dy)
