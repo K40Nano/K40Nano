@@ -381,7 +381,5 @@ class Nano:
 
 
 argv = sys.argv
-#argv = "-o testing.svg -m 2in 2in -s 75 -r -e -s +1 -c 10 0 -p 5 -e".split(" ")
-argv = "-i baby.png -o testing.svg -e".split(" ")
 nano = Nano(argv)
 nano.execute()
