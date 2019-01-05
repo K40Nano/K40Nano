@@ -381,5 +381,6 @@ class Nano:
 
 
 argv = sys.argv
+argv = "-i outfile* -o merge.egv".split(" ")
 nano = Nano(argv)
 nano.execute()

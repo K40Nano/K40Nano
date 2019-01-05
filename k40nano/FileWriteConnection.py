@@ -18,7 +18,9 @@ class FileWriteConnection(Connection):
         self.writer.close()
 
     def write(self, data=None):
-        self.writer.write(data.decode("utf-8"))
+        if isinstance(data, bytes):
+            data = data.decode("utf-8")
+        self.writer.write(data)
 
     def flush(self):
         self.writer.write('\n')
