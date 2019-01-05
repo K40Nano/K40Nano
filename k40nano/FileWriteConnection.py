@@ -18,9 +18,7 @@ class FileWriteConnection(Connection):
         self.writer.close()
 
     def write(self, data=None):
-        """
-        Buffers data, sending any complete packets.
-        :param data:
-        :return:
-        """
         self.writer.write(data.decode("utf-8"))
+
+    def flush(self):
+        self.writer.write('\n')
