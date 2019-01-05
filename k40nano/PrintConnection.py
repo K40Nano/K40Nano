@@ -11,9 +11,4 @@ class PrintConnection(Connection):
         Connection.__init__(self)
 
     def write(self, data=None):
-        """
-        Buffers data, sending any complete packets.
-        :param data:
-        :return:
-        """
         print(data)

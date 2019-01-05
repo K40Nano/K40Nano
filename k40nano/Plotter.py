@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+
 class Plotter:
     def __init__(self, current_x=0, current_y=0):
         self.current_x = current_x

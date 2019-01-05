@@ -98,6 +98,7 @@ def parse_egv(f, plotter):
     is_speed = False
     is_cut = False
     is_harmonic = False
+    value_s = -1
 
     for commands in egv_parser.parse(f):
         cmd = commands[0]
@@ -169,25 +170,29 @@ def parse_egv(f, plotter):
             is_on = False
             plotter.up()
         elif cmd == COMMAND_S:  # s command
-            pass
+            value_s = commands[2]  # needed to know which E we are performing.
         elif cmd == COMMAND_E:  # slow
-            # compact_mode command is only for NanoPlotter.
-            try:
-                plotter.enter_compact_mode(speed=speed_code, harmonic_step=value_g)
-            except AttributeError:
-                pass
-            is_compact = True
+            if value_s == 1:  # is S1E not SE
+                try:  # compact_mode command is only for NanoPlotter.
+                    plotter.enter_compact_mode(speed=speed_code, harmonic_step=value_g)
+                except AttributeError:
+                    pass
+                is_compact = True
         elif cmd == COMMAND_P:  # pop
             is_compact = True
         elif cmd == COMMAND_INTERRUPT:  # interrupt
             pass
         elif cmd == COMMAND_FINISH:  # finish
-            plotter.close()
+            try:  # compact_mode command is only for NanoPlotter.
+                    plotter.enter_compact_mode(speed=speed_code, harmonic_step=value_g)
+            except AttributeError:
+                    pass
+            is_compact = True
         elif cmd == COMMAND_CUT:  # cut
             is_harmonic = False
             is_cut = True
             value_g = 0
-            speed_code += COMMAND_CUT
+            speed_code += str(COMMAND_CUT)
         elif cmd == COMMAND_SPEED:  # velocity
             is_speed = True
             speed_code += str(commands[2])
@@ -196,7 +201,7 @@ def parse_egv(f, plotter):
             speed_code += "G%03d" % value_g
         elif cmd == COMMAND_NEXT:  # next
             try:
-                plotter.exit_compact_mode()
+                plotter.exit_compact_mode_break()
             except AttributeError:
                 pass
             is_compact = False

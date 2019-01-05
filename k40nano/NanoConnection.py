@@ -186,7 +186,7 @@ class NanoConnection(Connection):
         while True:
             try:
                 self.usb.send(packet)
-            except Exception:
+            except ValueError:
                 timeout_count += 1
                 if timeout_count >= self.MAX_TIMEOUTS:
                     raise Exception
