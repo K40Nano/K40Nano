@@ -5,19 +5,9 @@ COMMAND_LEFT = b'T'
 COMMAND_TOP = b'L'
 COMMAND_BOTTOM = b'R'
 
-COMMAND_ANGLE = b'M'
 COMMAND_ON = b'D'
 COMMAND_OFF = b'U'
-COMMAND_NEXT = b'N'
-COMMAND_S = b'S'
 COMMAND_P = b'P'
-COMMAND_E = b'E'
-COMMAND_INTERRUPT = b'I'
-COMMAND_SPEED = b'V'
-COMMAND_CUT = b'C'
-COMMAND_FINISH = b'F'
-COMMAND_STEP = b'G'
-COMMAND_RESET = b'@'
 
 
 class EgvParser:
@@ -98,6 +88,8 @@ def parse_egv(f, plotter):
     is_speed = False
     is_cut = False
     is_harmonic = False
+    is_finishing = False
+    is_resetting = False
     value_s = -1
 
     for commands in egv_parser.parse(f):
@@ -153,7 +145,7 @@ def parse_egv(f, plotter):
             else:
                 plotter.move(0, -distance)
             is_top = True
-        elif cmd == COMMAND_ANGLE:
+        elif cmd == b'M':
             if is_left:
                 distance_x = -distance
             else:
@@ -169,47 +161,53 @@ def parse_egv(f, plotter):
         elif cmd == COMMAND_OFF:  # laser off
             is_on = False
             plotter.up()
-        elif cmd == COMMAND_S:  # s command
+        elif cmd == b'S':  # s command
             value_s = commands[2]  # needed to know which E we are performing.
-        elif cmd == COMMAND_E:  # slow
-            if value_s == 1:  # is S1E not SE
-                try:  # compact_mode command is only for NanoPlotter.
-                    plotter.enter_compact_mode(speed=speed_code, harmonic_step=value_g)
-                except AttributeError:
-                    pass
-                is_compact = True
-        elif cmd == COMMAND_P:  # pop
+        elif cmd == b'E':  # slow
             is_compact = True
-        elif cmd == COMMAND_INTERRUPT:  # interrupt
-            pass
-        elif cmd == COMMAND_FINISH:  # finish
+            if is_finishing or is_resetting:
+                is_resetting = False
+                is_compact = False
+                is_on = False
+                is_left = False
+                is_top = False
+                is_speed = False
+                is_cut = False
+                is_harmonic = False
+            if is_finishing:
+                is_finishing = False
+                break
             try:  # compact_mode command is only for NanoPlotter.
-                    plotter.enter_compact_mode(speed=speed_code, harmonic_step=value_g)
+                plotter.enter_compact_mode(speed=speed_code, harmonic_step=value_g)
             except AttributeError:
-                    pass
+                pass
+        elif cmd == b'F':  # finish
             is_compact = True
-        elif cmd == COMMAND_CUT:  # cut
+            try:  # compact_mode command is only for NanoPlotter.
+                plotter.enter_compact_mode(speed=speed_code, harmonic_step=value_g)
+            except AttributeError:
+                pass
+        elif cmd == b'P':  # pop
+            is_compact = False
+        elif cmd == b'I':  # interrupt
+            pass
+        elif cmd == b'C':  # cut
             is_harmonic = False
             is_cut = True
             value_g = 0
-            speed_code += str(COMMAND_CUT)
-        elif cmd == COMMAND_SPEED:  # velocity
+            speed_code += 'C'
+        elif cmd == b'V':  # velocity
             is_speed = True
-            speed_code += str(commands[2])
-        elif cmd == COMMAND_STEP:  # engrave
+            speed_code += 'V' + str(commands[2])
+        elif cmd == b'G':  # engrave
+            is_harmonic = True
             value_g = commands[2]
             speed_code += "G%03d" % value_g
-        elif cmd == COMMAND_NEXT:  # next
+        elif cmd == b'N':  # next
+            is_compact = False
             try:
                 plotter.exit_compact_mode_break()
             except AttributeError:
                 pass
-            is_compact = False
-        elif cmd == COMMAND_RESET:  # reset
-            is_compact = False
-            is_on = False
-            is_left = False
-            is_top = False
-            is_speed = False
-            is_cut = False
-            is_harmonic = False
+        elif cmd == b'@':  # reset
+            is_resetting = True
