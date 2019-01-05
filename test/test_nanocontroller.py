@@ -14,5 +14,5 @@ class TestNanoController(unittest.TestCase):
         plotter.close()
         with open("test.egv", "r+") as f:
             line = f.readline()
-            self.assertEqual("IBaRaS1P", line)
+            self.assertEqual("IBaRaS1P\n", line)
         self.addCleanup(os.remove, filename)
