@@ -225,7 +225,7 @@ class Nano:
         m = NanoCommand()
         m.wait = float(self.v())
         values.append(m)
-        m.title = "Pause for: %f seconds" % str(m.wait)
+        m.title = "Pause for: %f seconds" % m.wait
         self.log(m.title)
         values.append(m)
         return values
