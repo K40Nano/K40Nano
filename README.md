@@ -27,14 +27,14 @@ API:
 
 The API encapsulates the two major advances of K40 Whisperer, writing into `LHYMICRO-GL` format and transmitting data directly to the K40 device. We write the `LHYMICRO-GL` encoded commands with NanoPlotter and transmit this data with a NanoConnection.
 
-We interface the code production, directions, movements, laser_usage via a `Plotter` which is just like the pen plotters or turtlegraphics like interfaces. This should be very simple and easy to use, and yet able to encapsulate everything we are doing.
+We interface code writing of directions, movements, laser_usage via a `Plotter` which is just like the pen plotters or turtlegraphics interfaces. This should be very simple and easy to use, and yet able to encapsulate everything we are doing.
 
-The data produced by the NanoPlotter is sent to a connection, for controlling the K40 laser we use NanoConnection. This is part is based on almost exclusively K40 Whisperer code and performs the interface, packetizations, and handling the usb connection to the device. Making the USB interactions is left to the NanoUsb class which can be switched, for testing purposes, with the MockUsb class.
+The data produced by the NanoPlotter is sent to a connection, for controlling the K40 laser we use NanoConnection.
 
 Plotters
 ---
 
-The M, A, B series boards use `LHYMICRO-GL` encoding which is derived from pen-plotters. As such plotter interface is the best, simplest, and most natural way to interact with the K40. But, because it's so generic it gives puts all the control into the users hands.
+The M, A, B series boards use `LHYMICRO-GL` encoding which is derived from pen-plotters. As such plotter interface is the best, simplest, and most natural way to interact with the K40.
  
 Plotters have:
 * open()
@@ -43,13 +43,15 @@ Plotters have:
 * up()
 * close()
 
-Effectively this captures almost everything a laser cutter can do. For debugging purposes there are also specialty plotters that write to file types rather than to a NanoConnection. These are `PngPlotter` and `SvgPlotter` which plots to a PNG file and an SVG file respectively. Code can be tested without requiring the laser to actually used.
+This captures almost everything a laser cutter can do.
+
+For debugging purposes, there are also specialty plotters that write to file types rather than to a NanoConnection. These are `PngPlotter` and `SvgPlotter` which plot to a PNG file and an SVG file respectively.
 
 
 NanoPlotter
 ---
 
-The first major advance is writing to `LHYMICRO-GL` format. There are a few non-plotter based judgment calls to be made here in how it should send the data. `NanoPlotter` has a few commands outside the scope of typical plotter. Mostly this is to control the compact mode within the language, and how we would like our data packaged. These are:
+One of the key technologies from K40-Whisperer is writing to `LHYMICRO-GL` format. There are, however, a few non-plotter based judgment calls to be made here as to how we should send the data. As such, `NanoPlotter` has a few commands outside the scope of typical plotter. Mostly this is to control the compact mode for the device, and how we would like our data packaged. These are:
 
 * enter_compact_mode(speed, harmonic_step)
 * exit_compact_mode_finish()
@@ -57,16 +59,16 @@ The first major advance is writing to `LHYMICRO-GL` format. There are a few non-
 * exit_compact_mode_break()
 * enter_concat_mode()
 
-In default mode, the device will simply execute the command immediately and pop the stack. This sends everything as rapid commands, even turning the laser on and off in place.
+In default mode, the device will simply execute the command immediately and pop the stack. This sends everything as rapid commands, even turning the laser on and off without moving it.
 
-In concat mode, commands are all strung together. They may be delayed until the current packet is full. But these are all rapid commands, where you have either chosen to not flush out the packet after each command, or the NanoPlotter cannot be sure doing so is safe. These commands will be written to the buffer but may not be sent until the (30 byte) packet is full and as sending prematurely may introduce undesirable commands to the stack. If we do not manually invoke enter_concat_mode and we exit compact with exit_compact_mode_finish(), this mode will not occur. This it is generally optional.
+In concat mode, commands are all strung together. They may be delayed until the current packet is full. But these are all rapid commands, where the users has either chosen to not flush out the packet after each command, or the NanoPlotter cannot be sure doing so is safe because of previous mode changes. These commands will be written to the buffer but may not be sent until the (30 byte) packet is full and as sending prematurely may introduce undesirable commands to the stack. If we do not manually invoke `enter_concat_mode()` and we only exit compact with `exit_compact_mode_finish()`, this mode will not occur.
 
-The device itself has a compact mode. These are compacted instruction sets, executed quickly, at a particular head-movement speed. You enter_compact_mode() at a specific speed and the plotter commands are executed in compact_mode on the device. This is for your typical vector-cuts, vector-engraves and raster line engraves, anything where you need to go slower to cut deeper, and don't want to risk leaving the laser on in a stationary fashion should be executed in this mode, it also reduces the amount of data to be sent.
+The device itself has a compact mode. These are compacted instruction sets, executed quickly, at a particular head-movement speed. You `enter_compact_mode()` at a specific speed and the plotter commands are executed in compact_mode on the device. This is for your typical vector-cuts, vector-engraves and raster line engraves, anything where you need to go slower to cut deeper, and don't want to risk leaving the laser on in a stationary fashion should be executed in this mode, it also reduces the amount of data to be sent and ensure things are done one the board.
 
 There are three ways to exit this mode.
 * Finish. This sends a finished command, and blocks our code operations until the device itself says the task is complete. Returning us to default mode.
-* Reset. This sends a reset command, allowing additional code to be sent without delay. It returns us to default mode.
-* Break. Doesn't reset the speed commands within the device. It returns us to default mode. We can still reenter compact mode at whatever speed but it has to enter_compact-reset-exit_compact to change speeds, and also to close the plotter. But, if want to run some more at the same speed we do not need to reset.
+* Reset. This sends a reset command, allowing additional code to be sent without delay. It returns us to concat mode.
+* Break. Doesn't reset the speed commands within the device. It returns us to concat mode. We can still reenter compact mode at whatever speed, but in that case NanoPlotter has to enter_compact-reset-exit_compact to permit the speed change or close the plotter. But, if want to run more compact commands at at the same speed after some rapid moves, this will do that.
 
 In addition to those we have a couple helpful device specific commands:
 * home() : Homes the device back to 0,0 (upper left corner)
@@ -95,6 +97,8 @@ Connections try to mimic a file-like object, and they have:
 
 NanoConnection
 ---
+The NanoConnection class is based on almost exclusively a highly-streamlined version of K40 Whisperer code. and performs the interface, packetizations, and handling the usb connection to the device. Making the USB interactions is left to the NanoUsb class which can be switched, for testing purposes, with the MockUsb class.
+
 NanoConnection is the encapsulation of the other key element of Whisperer: the ability to use a usb connection to communicate with the K40 Laser Cutter. The USB interactions are performed by the NanoUsb class, but for testing purposes there is a MockUsb. This may be used by default if the `pyusb` package is not configured correctly.
 
 If you wish to send data via the NanoConnection direcly, for example you want to feed it pre-made data from an EGV file, you would only need to open the connection, write() the data, flush() the buffer, and close() the connection.  And the connection will deal with all the packetization and crc errors and resends for you.
