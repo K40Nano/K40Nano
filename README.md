@@ -3,27 +3,85 @@ Decoupled and extended low level support for K40, derived from K40 Whisperer.
 
 K40Nano is intended to pull out the low level support from K40Whisperer ( https://github.com/jkramarz/K40-Whisperer (not the author's github, there isn't an author's github)) and give it a helpful and proper encapsulation and a functional low level API. Making this functionality more direct, understandable, and extendable for everybody.
 
-Project Status
----
-Almost there. The API should be mostly stable, so how interactions are done should not change. There are likely a number of bugs still. And while some version of the code has been working here or there other errors may have cropped up. I'm hoping to test things and debug them in the next few days. Running the code with a mock output `-o mock` seems to produce quite reasonable egv data that a machine would have no trouble executing. Equally some commands like `Nano -o baby.svg -i baby.png` has no trouble converting a black and white image of a baby into an svg file of lines that looks like the given image.
-
-Some other elements like the Parsers and CLI seem to generally work but might still need some tweaks and adjustments these are somewhat less important. These could be removed from the project. So could the additional debug connections (PrintConnection, and FileWriteConnection) and debug plotters (SvgPlotter, PngPlotter). The actual essential files are NanoUsb, NanoConnection, and NanoPlotter.
 
 Compatibility
 ---
 K40Nano should be compatible with both Python 2.7 and 3.6.
 
 
+Project Status
+---
+Almost there.
+* We can control the K40 device.
+* We can write data directly to the device and have it packetized and treated as correct.
+* The API is mostly stable. I've properly mapped out the things it can do and the best ways to do those things. And it's simply enough an powerful enough to just work.
+* There are likely a number of bugs still. I'm hoping to test things and debug them in the next few days.
+* There's still some edge conditions that must be dealt with correctly.
+* Running the code with a mock output `-o mock` seems to produce quite reasonable egv data.
+* Commands like `Nano -o baby.svg -i baby.png` has no trouble converting a black and white PNG image of a baby into an svg file of lines that looks like the given image, so a lot of the functionality works.
+* I've directly converted large black and white png files into on-the-fly egv data sent to the laser.
+
+
 API:
 ---
 
-The API is broken down into three main types, connections output streams. Connections, Plotters, and Parsers.
+The API encapsulates the two major advances of K40 Whisperer, writing into `LHYMICRO-GL` format and transmitting data directly to the K40 device. We write the `LHYMICRO-GL` encoded commands with NanoPlotter and transmit this data with a NanoConnection.
 
-Connections are what we are connecting to and sending data to, Plotters is how tell the device to move and fire lasers beams, and Parser read a file and apply the instructions it contains to the Plotter.
+We interface the code production, directions, movements, laser_usage via a `Plotter` which is just like the pen plotters or turtlegraphics like interfaces. This should be very simple and easy to use, and yet able to encapsulate everything we are doing.
+
+The data produced by the NanoPlotter is sent to a connection, for controlling the K40 laser we use NanoConnection. This is part is based on almost exclusively K40 Whisperer code and performs the interface, packetizations, and handling the usb connection to the device. Making the USB interactions is left to the NanoUsb class which can be switched, for testing purposes, with the MockUsb class.
+
+Plotters
+---
+
+The M, A, B series boards use `LHYMICRO-GL` encoding which is derived from pen-plotters. As such plotter interface is the best, simplest, and most natural way to interact with the K40. But, because it's so generic it gives puts all the control into the users hands.
+ 
+Plotters have:
+* open()
+* move(dx, dy)
+* down()
+* up()
+* close()
+
+Effectively this captures almost everything a laser cutter can do. For debugging purposes there are also specialty plotters that write to file types rather than to a NanoConnection. These are `PngPlotter` and `SvgPlotter` which plots to a PNG file and an SVG file respectively. Code can be tested without requiring the laser to actually used.
+
+
+NanoPlotter
+---
+
+The first major advance is writing to `LHYMICRO-GL` format. There are a few non-plotter based judgment calls to be made here in how it should send the data. `NanoPlotter` has a few commands outside the scope of typical plotter. Mostly this is to control the compact mode within the language, and how we would like our data packaged. These are:
+
+* enter_compact_mode(speed, harmonic_step)
+* exit_compact_mode_finish()
+* exit_compact_mode_reset()
+* exit_compact_mode_break()
+* enter_concat_mode()
+
+In default mode, the device will simply execute the command immediately and pop the stack. This sends everything as rapid commands, even turning the laser on and off in place.
+
+In concat mode, commands are all strung together. They may be delayed until the current packet is full. But these are all rapid commands, where you have either chosen to not flush out the packet after each command, or the NanoPlotter cannot be sure doing so is safe. These commands will be written to the buffer but may not be sent until the (30 byte) packet is full and as sending prematurely may introduce undesirable commands to the stack. If we do not manually invoke enter_concat_mode and we exit compact with exit_compact_mode_finish(), this mode will not occur. This it is generally optional.
+
+The device itself has a compact mode. These are compacted instruction sets, executed quickly, at a particular head-movement speed. You enter_compact_mode() at a specific speed and the plotter commands are executed in compact_mode on the device. This is for your typical vector-cuts, vector-engraves and raster line engraves, anything where you need to go slower to cut deeper, and don't want to risk leaving the laser on in a stationary fashion should be executed in this mode, it also reduces the amount of data to be sent.
+
+There are three ways to exit this mode.
+* Finish. This sends a finished command, and blocks our code operations until the device itself says the task is complete. Returning us to default mode.
+* Reset. This sends a reset command, allowing additional code to be sent without delay. It returns us to default mode.
+* Break. Doesn't reset the speed commands within the device. It returns us to default mode. We can still reenter compact mode at whatever speed but it has to enter_compact-reset-exit_compact to change speeds, and also to close the plotter. But, if want to run some more at the same speed we do not need to reset.
+
+In addition to those we have a couple helpful device specific commands:
+* home() : Homes the device back to 0,0 (upper left corner)
+* unlock_rail() : Allows you to manually drag the rail into position.
+* lock_rail() : Locks the rail again. (this will be done automatically for most things)
+* abort() : Kills the current job, restores us to default mode.
+
+These should be done in default mode. If we aren't in default mode, it will attempt to get there by exiting whatever modes we are in. Except abort() which won't do anything other than kill whatever the device is currently doing. If you flag them with abort=True the other commands will send anyway without trying to correct the mode.
+
+NOTE: down() and up() commands are, in default mode, single-packet commands. This will cause the K40 to turn on the laser and just sit there firing the laser. If this is not desirable, do not use these commands in default mode.
 
 Connections
 ---
-The main one is NanoConnection which uses a usb connection to communicate with the K40. For testing purposes there is a MockUsb, but the main element is NanoUsb which does all the device specific connections etc. In addition to this there are a couple other connection classes `FileWriteConnection` and `PrintConnection` if these are assigned to a plotter then the plotter operations are sent to a file specified or to `print` accordingly.
+The NanoPlotter sends its data via a connection. In addition to the NanoConnection, there are a couple other debug connection classes `FileWriteConnection` and `PrintConnection` that can be requested when we open the NanoConnection, if these are used by the NanoPlotter the data will be redirected to them and written to a file or printed accordingly.
+
 Connections try to mimic a file-like object, and they have:
 
 * send(data) - Sends data immediately.
@@ -34,57 +92,44 @@ Connections try to mimic a file-like object, and they have:
 * close() - Closes the connection
 * wait() - Waits for the device to report itself done.
 
-Plotters
+
+NanoConnection
 ---
+NanoConnection is the encapsulation of the other key element of Whisperer: the ability to use a usb connection to communicate with the K40 Laser Cutter. The USB interactions are performed by the NanoUsb class, but for testing purposes there is a MockUsb. This may be used by default if the `pyusb` package is not configured correctly.
 
-The primary way to interact with with the API though is through the plotters. This is modelled after old pen plotters from which the `LHYMICRO-GL` encoding is derived. As such it is the best, simplest, and most natural way to interact with the K40.
- 
-Plotters have:
-* open()
-* close()
-* move(dx, dy)
-* down()
-* up()
+If you wish to send data via the NanoConnection direcly, for example you want to feed it pre-made data from an EGV file, you would only need to open the connection, write() the data, flush() the buffer, and close() the connection.  And the connection will deal with all the packetization and crc errors and resends for you.
 
-Effectively capturing almost everything a laser cutter can do. Like with Connectors there's couple helpful debugger plotters. These are `PngPlotter` and `SvgPlotter` which plots to a Png file and an Svg file respectively. 
+Units
+---
+The code throughout uses mils (1/1000th of an inch). So 2000 is 2 inches. 
 
-The main plotter however is `NanoPlotter` and it has a few commands outside the scope of typical plotter. Mostly this is to control the compact mode within the language. These are:
-
-* enter_compact_mode(speed, harmonic_step)
-* exit_compact_mode_finish()
-* exit_compact_mode_reset()
-* exit_compact_mode_break()
-* enter_concat_mode()
-
-There are two modes, one for the device itself and a second because sometimes we don't know the correct state. There are three different methods to perform a move, all of these are supported. We can perform a rapid move. These are the positioning adjustments for the device. They consist of a single packet flagged with S1P at the end. These are fast and the initial state to use. Secondly we have compact mode. These are compacted instruction sets, at a particular speed. You enter_compact_mode() at a specific speed and the actions in compact_mode are done at that speed. This is for your typical vector-cuts or vector-engraves. Anything where you need to go slower to cut deeper.
-
-The final mode is concat mode. If we didn't exit_compact_mode to a finished state, we cannot know whether or not device has finished. For technical reasons we can't start calling rapid moves as these trigger a "S1P" suffix which is not acceptable if we're currently cutting something. We can, however, concatenate these commands divided by N commands. These will be written to the buffer but may not be sent until the packet is full and sending prematurely may introduce undesirable command to the stack. So it will eventually perform that action, but we could not safely demand it happen instantly. If we exited compact with finish() though it would have returned to the default method of sending rapid-move packets.
+Coordinate System
+---
+The coordinate system is that the origin is in the upper left corners and all Y locations are DOWN. Which is to say higher Y values mean lower on the device. This is similar to all modern graphics system, but seemingly different than `K40 Whisperer` which seemed to strongly imply that all Y values are negative. Internally the commands are all relative with a positive magnitude so this is a choice.
 
 
-In addition to those we have a couple helpful device specific commands:
-* home()
-* lock_rail()
-* unlock_rail()
-
-These cause the device to home, lock the rail, and unlock the rail. By default it will try to leave the compact mode if it has that option. But, this can be overwritten by sending abort=True. 
 
 
-Also, keep in mind that the down() and up() commands are, in rapid-mode, rapid-commands. This will cause the K40 to turn on the laser and just sit there firing the laser. Generally we should enter_compact_mode() for most things we are doing. Usually this will be read a vector file of some type and write it to the laser, via the NanoPlotter's API.
+# Code Examples
+---
+While NanoConnection and NanoPlotter are primary here, I've also included a couple code examples that interact with the api. Sometimes it isn't enough to be done correctly, it also needs to be fundamentally useful quickly.
 
+These are actually kind of likly to be all spun off into a different project that simply requires the API.
 
 Parsers
 ---
-In a real sense the parsers are an end product than part of an API but these are given as solid examples of how things can work.
 
-There are a couple basic parser classes these take a filename or fileobject and a controller. `parse_png` within the `PngParser` class parses a png file scanline by scanline and feeds that information to the Plotter, it does this directly via by reading the PNG directly, and iterating through the file and returning the relevant commands as it reads the file. There's very little memory footprint and even a tiny device can write a massive file.
+There are two premade parser classes these take a filename or fileobject and a plotter. 
 
-`parse_egv` within the `EgvParser` class reads the egv file and applies that to the Plotter. The `NanoPlotter` would then turn these commands back into .egv data and send it to the laser. Since the only way we interact is through the API, the .EGV files do not have any special priority. They are simply files containing vector data, and are treated as such. This is required because NanoPlotter needs to know the current state, so it cannot have something else altering that state without it knowing.
+`parse_png` within the `PngParser` class parses a png file scanline by scanline and plots that information. It does this by reading the PNG directly, and iterating through the file on the fly. There's very little memory footprint and even a tiny device can process a huge file.
 
-Several other parsers could be added along these same lines, basically anything that takes in vector-like data. The idea being simply accept a filename or fileobject then parse that applying the relevant commands to the API and having it the API handle it. It's all properly encapsulated and isolated. But, if you wanted to rig up joystick to control the K40, you could do that with a few lines of code and the API commands, parsers are a typical uses case example.
+`parse_egv` within the `EgvParser` class reads the egv file and plots that data. The `NanoPlotter` would then turn these commands back into .egv data and send it to the laser. In the parser the .EGV files do not have any special priority. They are simply treated as containing vector data. We could, instead of doing this, just load up a NanoConnection ourselves and feed the EGV data in.
+
+Several other parsers could be added along these same lines. Load a file, interact with the API based on what the file says. But these should not be assumed to be a limit to the utility. It's all properly encapsulated and isolated. But, if you wanted to rig up joystick to control the K40, you could do that with a few lines of code and the API commands, parsers are only a typical uses case example.
 
 CLI (Command Line Interface)
 ---
-I've provided a Nano CLI. This is not intended to be exclusive or definitative, but go ahead and ask more to be built on it (raise an issue). It is built on the concept of a stack. Namely you have a list of commands you can list them with (-l), you can load files with a wildcard "-i \*.EGV" and it should load those files. So for example, if you wanted to run a series of 25 jobs, with 30 seconds between each. You would call "Nano.py -m <x> <y> -e -i my_job.egv -w 30 -p 25 -e" which would add a move to the stack, execute that, add my_job.egv to the stack, add a wait of 30 seconds to the stack then duplicate the stack 25 times, allowing you to perform an automated task (or burn the same thing 25 times, with a some amount of switching / cool off time).
+I've provided a `Nano` CLI. This is not intended to be exclusive or definitative, but go ahead and ask more to be built on it (raise an issue). It is built on the concept of a stack. Namely you have a list of commands you can list them with (-l), you can load files with a wildcard "-i \*.EGV" and it should load those files.
  
 * -i [\<input-\*\>]\*, loads egv/png files
 * -o [<egv/png/svg>|"print"|"mock"]?, sets output method
@@ -104,51 +149,45 @@ I've provided a Nano CLI. This is not intended to be exclusive or definitative, 
 * -q, quiet mode
 * -h, display this message
 
-Example call:
+Nano uses the PNG parser. Calling the input on a PNG file will perform the raster-engrave commands of the scanlines of the PNG file. As defined in that parser. 
 
-`python2 ./Nano.py -r -m 2000 2000 -e -i *.EGV -m 750 0 -p 5 -m -3750 750 -p 5 -e`
+The CLI will also accept units: in, mm, cm, ft. There cannot be a space between the number and the unit. `-m 2in 2in` or `-c 33mm 7mm` 
 
-This calls Nano which is the CLI:
-* -r: goes to home position
+Usually this would be:
+`python2 ./Nano.py <commands>`
+
+Example #1:
+If you wanted to run a series of 25 jobs, with 30 seconds between each.
+
+Nano `-m 2in 2in -e -i my_job.egv -w 30 -p 25 -e`
+
+* -m: Add a move to the stack
+* -e: execute the stack (move command)
+* -i my_job.egv: add my_job.egv to the stack
+* -w: add a 30 second wait to the stack.
+* -p 25: duplicate the stack (my_job.egv, wait) 25 times.
+* (default -e) executes stack.
+
+Example #2:
+If you wanted to make 25 copies of a file in a 5x5 grid.
+
+Nano `-r -m 2000 2000 -e -i *.EGV -m 750 0 -p 5 -m -3750 750 -p 5`
+
+* -r: Adds a home position command to the stack.
 * -m 2000 2000: moves +2 inches +2 inches
-* -e: executes those commands requested thus far.
-* -i \test_engrave.EGV: inputs that file
+* -e: executes stack (home position, move command)
+* -i adds each found file matching wildcard \*.EGV to the stack.
+    * In my case this only matched test_engrave.EGV which was about 0.5 x 0.5 inches wide.
 * -m 750 0: moves +0.75 inches right.
-* -p 5: performs 5 passes of the current stack. Namely, the one loaded file, and the move command.
-* -m -3750 750: moves -3.75 inches left, and 0.75 inches down.
-* -p 5: performs 5 passes of the current stack. Namely, the 5x line, and the move to the next row.
-* -e: executes those commands requested thus far.
-
-Calling the input on a PNG file will perform the raster-engrave commands of the scanlines of the PNG file. The program calls the PngParser.
-
-The CLI will also accept some units like `-m 2in 2in` or `-c 33mm 7mm` (in, mm, cm, ft (there cannot be a space between the number and the unit))
+* -p 5: duplicate stack 5 times (files, move command)
+* -m -3750 750: adds move -3.75 inches left, and 0.75 inches down to the stack.
+* -p 5: duplicates stack 5 times. (files, move command, files, move command, files, move command, files, move command, files, move command, move to next row position)
+* (default -e) executes stack.
 
 
-NanoConnection
----
-We are connecting to a specific board on a K40 machine, and interacting across the USB cable. The connection class wraps whatever data it's given and process that data. No class using NanoConnection needs to know anything more, it seamlessly packetizes the data them and does the interaction with the USB. It deals with timeouts, CRC error resends, and making and appending the CRC bytes to the packets, etc. These interactions should not need to be known outside of the class.
-
-NanoUsb
----
-Encloses the USB classes, keep in mind this code is identical to K40 Whisperer and as such simply requires the same install and if K40 Whisperer works, this will also work. If you are having trouble here, get K40 Whisperer to work and this should also work.
 
 
-MockUsb
----
-Fake USB class for testing purposes. If `pyusb` is not properly setup the NanoUsb should fail and replace with the MockUsb largely for testing purposes. It can also be specified in the the open of NanoConnection to use the MockUsb instead.
-
-
-Units
----
-The code throughout uses mils (1/1000th of an inch) so the units in the CLI are currently defaulted to mils. So 2000 is 2 inches. And while the CLI still uses this explicitly, it's mostly to use native units in the K40 device.
-
-
-Coordinate System
----
-The coordinate system is that the origin is in the upper left corners and all Y locations are DOWN. Which is to say higher Y values mean lower on the device. This is similar to all modern graphics system, but seemingly different than `K40 Whisperer` which seemed to strongly imply that all Y values are negative. Internally the commands are all relative with a positive magnitude so this is a choice.
-
-
-Documentation
+# Documentation
 ---
 
 Contributions to this project may require a certain amount of understanding of the formatting used. While the goal is to make that understanding not required for the programmer or end user. They should be able to simply add the module, import NanoPlotter and then send it a bunch of commands and have it just work. Contributing to the core of the project or fixing a bug or misunderstanding or improving it or porting it to another language, may require a much more in depth understanding, so I have documented the format to the best of my understanding. 
