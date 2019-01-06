@@ -25,11 +25,6 @@ from .NanoConnection import NanoConnection
 from .Plotter import Plotter
 
 DEFAULT_SPEED = 75.0
-COMMAND_HOME = b'IPP'
-COMMAND_UNLOCK_RAIL = b'S2P'
-COMMAND_LOCK_RAIL = b'S1P'
-COMMAND_S1P = b'S1P'
-COMMAND_S1E = b'S1E'
 COMMAND_RIGHT = b'B'
 COMMAND_LEFT = b'T'
 COMMAND_TOP = b'L'
@@ -37,20 +32,11 @@ COMMAND_BOTTOM = b'R'
 COMMAND_ANGLE = b'M'
 COMMAND_ON = b'D'
 COMMAND_OFF = b'U'
-COMMAND_NEXT = b'N'
-COMMAND_S = b'S'
-COMMAND_P = b'P'
-COMMAND_E = b'E'
-COMMAND_INTERRUPT = b'I'
-COMMAND_SPEED = b'V'
-COMMAND_CUT = b'C'
-COMMAND_FINISH = b'F'
-COMMAND_STEP = b'G'
-COMMAND_RESET = b'@'
 
 STATE_DEFAULT = 0
 STATE_CONCAT = 1
-STATE_COMPACT = 2
+STATE_UNFINISHED = 2
+STATE_COMPACT = 3
 
 
 class NanoPlotter(Plotter):
@@ -68,9 +54,14 @@ class NanoPlotter(Plotter):
         self.is_speed = False
         self.is_cut = False
         self.is_harmonic = False
-        self.current_step = None
-        self.current_speed_code = None
-        self.current_speed_value = None
+
+        self.set_step = None
+        self.set_speed_code = None
+        self.set_speed_value = None
+
+        self.previous_set_step = None
+        self.previous_set_speed_code = None
+        self.previous_set_speed = None
 
     def open(self, connect=None, usb=None):
         self.connection = connect
@@ -82,6 +73,8 @@ class NanoPlotter(Plotter):
 
     def close(self):
         if self.state == STATE_CONCAT:
+            self.connection.write(b'S1P')
+        if self.state == STATE_UNFINISHED:
             self.enter_compact_mode()
             self.exit_compact_mode_finish()
         elif self.state == STATE_COMPACT:
@@ -111,7 +104,7 @@ class NanoPlotter(Plotter):
                 self.move_angle(dx, dy)
             else:
                 self.move_line(dx, dy)
-        elif self.state == STATE_CONCAT:
+        elif self.state == STATE_CONCAT or self.state == STATE_UNFINISHED:
             if dy == 0:
                 self.move_x(dx)
             elif dx == 0:
@@ -123,7 +116,7 @@ class NanoPlotter(Plotter):
         self.check_bounds()
 
     def laser_on(self):
-        self.up()
+        self.down()
 
     def laser_off(self):
         self.up()
@@ -137,7 +130,7 @@ class NanoPlotter(Plotter):
             self.connection.send(b'S1P')
         elif self.state == STATE_COMPACT:
             self.connection.write(COMMAND_ON)
-        elif self.state == STATE_CONCAT:
+        elif self.state == STATE_CONCAT or self.state == STATE_UNFINISHED:
             self.connection.write(COMMAND_ON)
             self.connection.write(b'N')
         self.is_on = True
@@ -151,7 +144,7 @@ class NanoPlotter(Plotter):
             self.connection.send(b'S1P')
         elif self.state == STATE_COMPACT:
             self.connection.write(COMMAND_OFF)
-        elif self.state == STATE_CONCAT:
+        elif self.state == STATE_CONCAT or self.state == STATE_UNFINISHED:
             self.connection.write(COMMAND_OFF)
             self.connection.write(b'N')
         self.is_on = False
@@ -159,68 +152,65 @@ class NanoPlotter(Plotter):
     def enter_compact_mode(self, speed=None, harmonic_step=None):
         if self.state == STATE_COMPACT:
             return
+        if self.state == STATE_DEFAULT:
+            self.connection.write(b"I")
         changing = (
-                (
-                        self.is_speed and
-                        speed is not None and
-                        (
-                                (
-                                        isinstance(speed, str) and
-                                        self.current_speed_code != speed
-                                )
-                                or
-                                (
-                                        isinstance(speed, (float, int)) and
-                                        self.current_speed_value != float(speed)
-                                )
-                        )
-                )
-                or
-                (
-                        self.is_harmonic and
-                        harmonic_step is not None and
-                        self.current_step != harmonic_step
-                )
-                or
-                (
-                        self.is_cut and
-                        (
-                                harmonic_step is not None and
-                                harmonic_step != 0
-                        )
-                )
-        )
-        if harmonic_step is None:
-            if self.current_step is not None:
-                harmonic_step = self.current_step
-            else:
-                harmonic_step = 0
-        if speed is None:
-            if self.current_speed_value is not None:
-                speed = self.current_speed_value
-            else:
-                speed = DEFAULT_SPEED
-            speed_code = self.board.make_speed(float(speed), harmonic_step)
-        elif isinstance(speed, str):
-            speed_code = speed
-        else:
-            speed_code = self.board.make_speed(float(speed), harmonic_step)
+                           self.is_speed and
+                           speed is not None and
+                           (
+                                   (
+                                           isinstance(speed, str) and
+                                           self.set_speed_code != speed
+                                   ) or (
+                                           isinstance(speed, (float, int)) and
+                                           self.set_speed_value != float(speed)
+                                   )
+                           )
+                   ) or (
+                           self.is_harmonic and
+                           harmonic_step is not None and
+                           self.set_step != harmonic_step
+                   ) or (
+                           self.is_cut and
+                           (
+                                   harmonic_step is not None and
+                                   harmonic_step != 0
+                           )
+                   )
 
-        if self.state == STATE_CONCAT:
-            if changing:
+        if speed is None and harmonic_step is None and self.previous_set_speed_code is not None:
+            speed_code = self.previous_set_speed_code
+        else:
+            if harmonic_step is None:
+                if self.previous_set_step is not None:
+                    harmonic_step = self.previous_set_step
+                else:
+                    harmonic_step = 0
+            if speed is None:
+                if self.previous_set_speed is not None:
+                    speed = self.previous_set_speed
+                else:
+                    speed = DEFAULT_SPEED
+                speed_code = self.board.make_speed(float(speed), harmonic_step)
+            elif isinstance(speed, str):
+                speed_code = speed
+            else:
+                speed_code = self.board.make_speed(float(speed), harmonic_step)
+        if changing:
                 # We can't perform this operation within concat. We must reset.
                 self.connection.write(b'S1E@NSE')  # Jump into compact mode and reset.
                 self.reset_modes()
-        else:
-            self.enter_concat_mode()
-
-        if changing or not self.is_speed:
+        if not self.is_speed:
             self.connection.write(speed_code)
             self.connection.write(b'N')
-        self.current_speed_code = speed_code
-        if isinstance(speed, (float, int)):
-            self.current_speed_value = speed
-        self.current_step = harmonic_step
+        self.set_speed_code = speed_code
+        self.previous_set_speed_code = speed_code
+        if speed is not None and isinstance(speed, (float, int)):
+            self.set_speed_value = speed
+            self.previous_set_speed = speed
+        if harmonic_step is not None:
+            self.set_step = harmonic_step
+            self.previous_set_step = harmonic_step
         self.is_speed = True
         self.is_harmonic = 'G' in speed_code
         self.is_cut = 'C' in speed_code
@@ -241,12 +231,12 @@ class NanoPlotter(Plotter):
         if self.state == STATE_COMPACT:
             self.connection.write(b'@NSE')
             self.reset_modes()
-            self.state = STATE_CONCAT
+            self.state = STATE_UNFINISHED
 
     def exit_compact_mode_break(self):
         if self.state == STATE_COMPACT:
             self.connection.write(b'N')
-            self.state = STATE_CONCAT
+            self.state = STATE_UNFINISHED
 
     def enter_concat_mode(self):
         if self.state == STATE_DEFAULT:
@@ -265,12 +255,12 @@ class NanoPlotter(Plotter):
     def lock_rail(self, abort=False):
         if not abort:
             self.exit_compact_mode_finish()
-        self.connection.send(b'IPS1P')
+        self.connection.send(b'IS1P')
 
     def unlock_rail(self, abort=False):
         if not abort:
             self.exit_compact_mode_finish()
-        self.connection.send(b'IPS2P')
+        self.connection.send(b'IS2P')
 
     def abort(self):
         self.connection.send(b'I')
@@ -283,9 +273,9 @@ class NanoPlotter(Plotter):
         self.is_left = False
         self.is_top = False
         self.is_speed = False
-        self.current_step = None
-        self.current_speed_value = None
-        self.current_speed_code = None
+        self.set_step = None
+        self.set_speed_value = None
+        self.set_speed_code = None
         self.is_cut = False
         self.is_harmonic = False
 
@@ -331,9 +321,9 @@ class NanoPlotter(Plotter):
         if self.is_harmonic and self.is_left:
             # TODO: Properly account for the distance of diagonal
             if self.is_top:
-                self.current_y -= self.current_step
+                self.current_y -= self.set_step
             else:
-                self.current_y += self.current_step
+                self.current_y += self.set_step
             self.is_on = False
         self.is_left = False
         self.connection.write(COMMAND_RIGHT)
@@ -346,9 +336,9 @@ class NanoPlotter(Plotter):
         if self.is_harmonic and not self.is_left:
             # TODO: Properly account for the distance of diagonal
             if self.is_top:
-                self.current_y -= self.current_step
+                self.current_y -= self.set_step
             else:
-                self.current_y += self.current_step
+                self.current_y += self.set_step
             self.is_on = False
         self.is_left = True
         self.connection.write(COMMAND_LEFT)
@@ -361,9 +351,9 @@ class NanoPlotter(Plotter):
         if self.is_harmonic and self.is_top:
             # TODO: Properly account for the distance of diagonal, and difference with Top/Bottom transitions
             if self.is_left:
-                self.current_x -= self.current_step
+                self.current_x -= self.set_step
             else:
-                self.current_x += self.current_step
+                self.current_x += self.set_step
             self.is_on = False
         self.is_top = False
         self.connection.write(COMMAND_BOTTOM)
@@ -377,9 +367,9 @@ class NanoPlotter(Plotter):
         if self.is_harmonic and not self.is_top:
             # TODO: Properly account for the distance of diagonal, and difference with Top/Bottom transitions
             if self.is_left:
-                self.current_x -= self.current_step
+                self.current_x -= self.set_step
             else:
-                self.current_x += self.current_step
+                self.current_x += self.set_step
             self.is_on = False
         self.connection.write(COMMAND_TOP)
         if dy != 0:
