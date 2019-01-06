@@ -118,7 +118,7 @@ The coordinate system is that the origin is in the upper left corners and all Y 
 ---
 While NanoConnection and NanoPlotter are primary here, I've also included a couple code examples that interact with the api. Sometimes it isn't enough to be done correctly, it also needs to be fundamentally useful quickly.
 
-These are actually kind of likly to be all spun off into a different project that simply requires the API.
+These are actually kind of likely to be all spun off into a different project that simply requires the API.
 
 Parsers
 ---
@@ -133,7 +133,7 @@ Several other parsers could be added along these same lines. Load a file, intera
 
 CLI (Command Line Interface)
 ---
-I've provided a `Nano` CLI. This is not intended to be exclusive or definitative, but go ahead and ask more to be built on it (raise an issue). It is built on the concept of a stack. Namely you have a list of commands you can list them with (-l), you can load files with a wildcard "-i \*.EGV" and it should load those files.
+I've provided a `Nano` CLI. This is not intended to be exclusive or definitive, but go ahead and ask more to be built on it (raise an issue). It is built on the concept of a stack. Namely you have a list of commands you can list them with (-l), you can load files with a wildcard "-i \*.EGV" and it should load those files.
  
 * -i [\<input-\*\>]\*, loads egv/png files
 * -o [<egv/png/svg>|"print"|"mock"]?, sets output method
@@ -215,7 +215,7 @@ Calling "S1P" triggers instant execution ignores any commands that occur after t
 * I: Deletes the buffer. Any commands currently in the stack are deleted. This includes all commands preceding the I within the same packet. This does not reset any modes. Turning the laser on with IDS1P then sending any additional I commands does not turn the laser off.
 * R,L: +Y, -Y direction flags. Set the direction flags for execution of the directional magnitude.
 * B,T: +X, -X direction flags. Set the direction flags for execution of the directional magnitude.
-* M: In compact mode, performs a 45° move in the direction of the last set direction flags. (Does nothing in default, R (+Y) gets the magnitude, doing LdistanceTdistanceN in default will do a angle in that mode)
+* M: In compact mode, performs a 45° move in the direction of the last set direction flags. (Does nothing in default, R (+Y) gets the magnitude, doing LdistanceTdistanceN in default will do an angle in that mode)
 * D,U: Laser On and Laser Off. Can be done in default or compact. Leaving or entering compact mode turns the laser off. When a step is invoked within compact, the laser is also disabled.
 * C,G: Cut, Raster_Step. Can be set in default mode (in any order at any point in default), by C overrides the G value and prevents any steps from happening.
 * V: Speedcode. Differs a bit by controller board, making some EGV files generally less compatible with each other as they are board dependent.
