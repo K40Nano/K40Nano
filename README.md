@@ -14,7 +14,7 @@ Project Status
 Almost there.
 * We can control the K40 device.
 * We can write data directly to the device and have it packetized and treated as correct.
-* The API is mostly stable. I've properly mapped out the things it can do and the best ways to do those things. And it's simply enough an powerful enough to just work.
+* The API is mostly stable. I've properly mapped out the things it can do and the best ways to do those things. And it's simply enough and powerful enough to just work.
 * There are likely a number of bugs still. I'm hoping to test things and debug them in the next few days.
 * There's still some edge conditions that must be dealt with correctly.
 * Running the code with a mock output `-o mock` seems to produce quite reasonable egv data.
