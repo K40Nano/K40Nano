@@ -11,10 +11,13 @@ plotter.open()
 def on_press(keypress):
     try:
         key = keypress.char
+        if key == 'e':
+            if not plotter.up():
+                plotter.down()
         if key == 'a':
-            plotter.move(amount, 0)
+            plotter.move(-amount, 0)
         elif key == 'd':
-            plotter.move(-amount, 0),
+            plotter.move(amount, 0),
         elif key == 's':
             plotter.move(0, amount)
         elif key == 'w':
@@ -49,11 +52,13 @@ def on_press(keypress):
     except AttributeError:
         if keypress == keyboard.Key.space:
             plotter.down()
+        if keypress == keyboard.Key.home:
+            plotter.home()
         return
 
 
 def on_release(key):
-    #print('{0} released'.format(key))
+    print('{0} released'.format(key))
     if key == keyboard.Key.esc:
         if not plotter.exit_compact_mode_finish():
             plotter.close()

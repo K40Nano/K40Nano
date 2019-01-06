@@ -55,7 +55,7 @@ class MockUsb:
     def read(self):
         return self.device.get_mock_read_value()
 
-    def send(self, packet):
+    def write(self, packet):
         self.device.do_mock_write(packet)
 
     def get_mock_read_value(self):
