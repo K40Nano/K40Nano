@@ -63,6 +63,13 @@ class NanoPlotter(Plotter):
         self.previous_set_speed_code = None
         self.previous_set_speed = None
 
+    def __enter__(self):
+        self.open()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
     def open(self, connect=None, usb=None):
         self.connection = connect
         if self.connection is None:
@@ -197,9 +204,9 @@ class NanoPlotter(Plotter):
             else:
                 speed_code = self.board.make_speed(float(speed), harmonic_step)
         if changing:
-                # We can't perform this operation within concat. We must reset.
-                self.connection.write(b'S1E@NSE')  # Jump into compact mode and reset.
-                self.reset_modes()
+            # We can't perform this operation within concat. We must reset.
+            self.connection.write(b'S1E@NSE')  # Jump into compact mode and reset.
+            self.reset_modes()
         if not self.is_speed:
             self.connection.write(speed_code)
             self.connection.write(b'N')
@@ -226,22 +233,30 @@ class NanoPlotter(Plotter):
             self.connection.wait()
             self.reset_modes()
             self.state = STATE_DEFAULT
+            return True
+        return False
 
     def exit_compact_mode_reset(self):
         if self.state == STATE_COMPACT:
             self.connection.write(b'@NSE')
             self.reset_modes()
             self.state = STATE_UNFINISHED
+            return True
+        return False
 
     def exit_compact_mode_break(self):
         if self.state == STATE_COMPACT:
             self.connection.write(b'N')
             self.state = STATE_UNFINISHED
+            return True
+        return False
 
     def enter_concat_mode(self):
         if self.state == STATE_DEFAULT:
             self.connection.write(b"I")
             self.state = STATE_CONCAT
+            return True
+        return False
 
     def home(self, abort=False):
         if not abort:
