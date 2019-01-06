@@ -12,12 +12,7 @@ K40Nano should be compatible with both Python 2.7 and 3.6.
 Project Status
 ---
 
-Almost there.
-
-* Controls the K40 device.
-* Can write data directly to the device and have it packetized and treated as correct.
-* The API is mostly stable. I've properly mapped out the things it can do and the best ways to do those things. And it's simply enough and powerful enough to just work.
-* There might still be some bugs and problematic edge conditions.
+Seems to work. Wrote Keyburn to access the device via keystrokes and it went off without a hitch, including turning on a particular speed and running direction. The export code looked good and it ran fine on the machine.
 
 API:
 ---
