@@ -75,12 +75,6 @@ class NanoConnection(Connection):
         self.RESPONSE_POWER = 239
         self.RESPONSE_ERROR_UNKNOWN = 9999  # Unknown response.
 
-    def __enter__(self):
-        self.open()
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.close()
-
     def send(self, data):
         """
         Writes all data immediately to the K40 device.

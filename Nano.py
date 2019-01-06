@@ -323,19 +323,22 @@ class Nano:
 
     def home_function(self):
         try:
-            self.plotter.home()
+            plotter = self.get_plotter()
+            plotter.home()
         except AttributeError:
             pass
 
     def unlock_function(self):
         try:
-            self.plotter.unlock_rail()
+            plotter = self.get_plotter()
+            plotter.unlock_rail()
         except AttributeError:
             pass
 
     def lock_function(self):
         try:
-            self.plotter.lock_rail()
+            plotter = self.get_plotter()
+            plotter.lock_rail()
         except AttributeError:
             pass
 

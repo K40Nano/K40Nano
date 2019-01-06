@@ -63,13 +63,6 @@ class NanoPlotter(Plotter):
         self.previous_set_speed_code = None
         self.previous_set_speed = None
 
-    def __enter__(self):
-        self.open()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.close()
-
     def open(self, connect=None, usb=None):
         self.connection = connect
         if self.connection is None:
