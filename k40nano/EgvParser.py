@@ -79,7 +79,7 @@ def parse_egv(f, plotter):
             return
     egv_parser.skip_header(f)
 
-    speed_code = ""
+    speed_code = None
     value_g = 0
     is_compact = False
     is_on = False
@@ -172,6 +172,7 @@ def parse_egv(f, plotter):
                 is_left = False
                 is_top = False
                 is_speed = False
+                speed_code = None
                 is_cut = False
                 is_harmonic = False
             if is_finishing:
@@ -195,13 +196,19 @@ def parse_egv(f, plotter):
             is_harmonic = False
             is_cut = True
             value_g = 0
+            if speed_code is None:
+                speed_code = ""
             speed_code += 'C'
         elif cmd == b'V':  # velocity
             is_speed = True
-            speed_code += 'V' + str(commands[2])
+            if speed_code is None:
+                speed_code = ""
+            speed_code += 'V%d' % commands[2]
         elif cmd == b'G':  # engrave
             is_harmonic = True
             value_g = commands[2]
+            if speed_code is None:
+                speed_code = ""
             speed_code += "G%03d" % value_g
         elif cmd == b'N':  # next
             is_compact = False

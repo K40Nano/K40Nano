@@ -381,6 +381,5 @@ class Nano:
 
 
 argv = sys.argv
-
 nano = Nano(argv)
 nano.execute()
