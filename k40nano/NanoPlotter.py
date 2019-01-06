@@ -130,7 +130,7 @@ class NanoPlotter(Plotter):
 
     def down(self):
         if self.is_on:
-            return
+            return False
         if self.state == STATE_DEFAULT:
             self.connection.write(b'I')
             self.connection.write(COMMAND_ON)
@@ -141,10 +141,11 @@ class NanoPlotter(Plotter):
             self.connection.write(COMMAND_ON)
             self.connection.write(b'N')
         self.is_on = True
+        return True
 
     def up(self):
         if not self.is_on:
-            return
+            return False
         if self.state == STATE_DEFAULT:
             self.connection.write(b'I')
             self.connection.write(COMMAND_OFF)
@@ -155,6 +156,7 @@ class NanoPlotter(Plotter):
             self.connection.write(COMMAND_OFF)
             self.connection.write(b'N')
         self.is_on = False
+        return True
 
     def enter_compact_mode(self, speed=None, harmonic_step=None):
         if self.state == STATE_COMPACT:
