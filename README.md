@@ -17,7 +17,7 @@ Compatibility
 K40Nano should be compatible with both Python 2.7 and 3.6.
 
 
-API:
+API
 ---
 
 This API encapsulates the two major advances of K40 Whisperer, writing into `LHYMICRO-GL` format and transmitting data directly to the K40 device. Writing the `LHYMICRO-GL` encoded commands is done with `NanoPlotter` and it transmits this data to the device with `NanoConnection`.
