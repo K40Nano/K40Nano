@@ -4,8 +4,13 @@ API support for K40 Laser Cutter with Nano Boards.
 
 K40Nano is intended to pull out the low level support from K40Whisperer and give it proper encapsulation and a functional low level API. Making this functionality more direct, understandable, and extendable for everybody.
 
-Install:
+Install
+---
+To install via PyPI
+
 `pip install k40nano`
+
+Include `k40nano` as part your project requirements.
 
 Compatibility
 ---
