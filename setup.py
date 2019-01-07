@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="k40nano",
-    version="0.0.3",
+    version="0.1.0",
     install_requires=[
         "pyusb"
     ],
@@ -14,7 +14,7 @@ setuptools.setup(
     description="Low Level K40 Control",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/tatarize/k40nano",
+    url="https://github.com/K40Nano/K40Nano",
     packages=setuptools.find_packages(),
     classifiers=(
         "Programming Language :: Python :: 2",

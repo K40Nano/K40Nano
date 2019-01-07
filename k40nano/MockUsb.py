@@ -76,8 +76,8 @@ class MockUsb:
 if __name__ == "__main__":
     connection = MockUsb()
     connection.initialize()
-    connection.send([160])
-    connection.send([166, 0, 73, 80, 80, 70, 70, 70,
+    connection.write([160])
+    connection.write([166, 0, 73, 80, 80, 70, 70, 70,
                      70, 70, 70, 70, 70, 70, 70, 70,
                      70, 70, 70, 70, 70, 70, 70, 70,
                      70, 70, 70, 70, 70, 70, 70, 70,

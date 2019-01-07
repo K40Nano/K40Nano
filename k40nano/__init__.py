@@ -9,9 +9,6 @@ from .PrintConnection import PrintConnection
 
 from .MockUsb import MockUsb
 
-from .EgvParser import parse_egv
-from .PngParser import parse_png
-
 from .LaserA import LaserA
 
 from .LaserB import LaserB
