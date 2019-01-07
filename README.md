@@ -105,3 +105,7 @@ Coordinate System
 ---
 The coordinate system is that the origin is in the upper left corners and all Y locations are DOWN. Which is to say higher Y values mean lower on the device. This is similar to all modern graphics system, but seemingly different than `K40 Whisperer` which seemed to strongly imply that all Y values are negative. Internally the commands are all relative with a positive magnitude.
 
+Documentation
+---
+See Wiki for documentation of the LHYMICRO-GL format.
+https://github.com/K40Nano/K40Nano/wiki
