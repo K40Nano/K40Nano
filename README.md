@@ -4,6 +4,8 @@ API support for K40 Laser Cutter with Nano Boards.
 
 K40Nano is intended to pull out the low level support from K40Whisperer and give it proper encapsulation and a functional low level API. Making this functionality more direct, understandable, and extendable for everybody.
 
+Install:
+`pip install k40nano`
 
 Compatibility
 ---
@@ -100,6 +102,11 @@ The code throughout uses mils (1/1000th of an inch). So 2000 is 2 inches, etc. T
 Coordinate System
 ---
 The coordinate system is that the origin is in the upper left corners and all Y locations are DOWN. Which is to say higher Y values mean lower on the device. This is similar to all modern graphics system, but seemingly different than `K40 Whisperer` which seemed to strongly imply that all Y values are negative. Internally the commands are all relative with a positive magnitude.
+
+Examples
+---
+See the companion K40Tools project for examples and useful tools built for the API.
+https://github.com/K40Nano/K40Tools
 
 
 Documentation
