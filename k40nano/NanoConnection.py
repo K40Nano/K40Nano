@@ -192,10 +192,9 @@ class NanoConnection(Connection):
                 buffer_count += 1
                 time.sleep(0.1)  # Wait 0.1 seconds and try again.
                 continue  # Cannot send packet.
-
             try:
                 self.usb.write(packet)
-            except ValueError:
+            except IOError:
                 timeout_count += 1
                 if timeout_count >= self.MAX_TIMEOUTS:
                     raise Exception
@@ -229,7 +228,7 @@ class NanoConnection(Connection):
         while True:
             try:
                 self.usb.write(self.HELLO)
-            except Exception:
+            except IOError:
                 timeout_count += 1
                 if timeout_count >= self.MAX_TIMEOUTS:
                     return None
@@ -252,5 +251,5 @@ class NanoConnection(Connection):
                 elif response == self.RESPONSE_POWER:
                     return response
                 return response
-            except:
+            except IOError:
                 return None

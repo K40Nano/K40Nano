@@ -41,12 +41,13 @@ STATE_COMPACT = 3
 
 class NanoPlotter(Plotter):
 
-    def __init__(self, laser_board=None):
+    def __init__(self, laser_board=None, connection=None, usb=None):
         Plotter.__init__(self)
         self.board = laser_board
         if self.board is None:
             self.board = LaserM2()
-        self.connection = None
+        self.connection = connection
+        self.usb = usb
         self.state = STATE_DEFAULT
         self.is_on = False
         self.is_left = False
@@ -63,10 +64,9 @@ class NanoPlotter(Plotter):
         self.previous_set_speed_code = None
         self.previous_set_speed = None
 
-    def open(self, connect=None, usb=None):
-        self.connection = connect
+    def open(self):
         if self.connection is None:
-            self.connection = NanoConnection(usb)
+            self.connection = NanoConnection(usb=self.usb)
         self.connection.open()
         self.reset_modes()
         self.state = STATE_DEFAULT
@@ -252,6 +252,22 @@ class NanoPlotter(Plotter):
             self.state = STATE_CONCAT
             return True
         return False
+
+    def h_switch(self):
+        if self.is_left:
+            self.connection.write(COMMAND_RIGHT)
+        else:
+            self.connection.write(COMMAND_LEFT)
+        self.is_left = not self.is_left
+        return True
+
+    def v_switch(self):
+        if self.is_top:
+            self.connection.write(COMMAND_BOTTOM)
+        else:
+            self.connection.write(COMMAND_TOP)
+        self.is_top = not self.is_top
+        return True
 
     def home(self, abort=False):
         if not abort:

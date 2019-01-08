@@ -40,6 +40,27 @@ class Plotter:
     def up(self):
         self.pen_down = False
 
+    def v_switch(self):
+        return False
+
+    def h_switch(self):
+        return False
+
+    def enter_concat_mode(self):
+        pass
+
+    def enter_compact_mode(self, speed=None, harmonic_step=None):
+        pass
+
+    def exit_compact_mode_finish(self):
+        pass
+
+    def exit_compact_mode_reset(self):
+        pass
+
+    def exit_compact_mode_break(self):
+        pass
+
     def check_bounds(self):
         self.min_x = min(self.min_x, self.current_x)
         self.min_y = min(self.min_y, self.current_y)

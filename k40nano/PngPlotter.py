@@ -25,7 +25,7 @@ class PngPlotter(Plotter):
                              segments[3] - self.min_y,
                              0)
         if isinstance(self.write_object, str):
-            with open(self.write_object, "+wb") as writer:
+            with open(self.write_object, "w+") as writer:
                 writer.write(raster.get_png_bytes())
         else:
             self.write_object.write(raster.get_png_bytes())
