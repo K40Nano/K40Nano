@@ -1,94 +1,74 @@
 #!/usr/bin/env python
 
-from math import *
-
-from .interpolate import interpolate
+from LaserSpeed import LaserSpeed
 
 
 class LaserB2:
+    """
+    Values at 9 and below are errored.
+    Values at below 6 are tagged with C
+    Values below 9 are negative values.
+
+    Has diagonal speedcode.
+    """
+
     def __init__(self):
         self.board_name = "LASER-B2"
 
-    def make_speed(self, feed=None, step=0):
-        append_code = ""
-        if feed <= .7:
-            M = 200.422
-            B = 16777468.941
-            append_code = "C"
-        elif feed <= 6:
-            M = 200.423
-            B = 252.942
-            append_code = "C"
-        elif feed <= 9:
-            M = 2405.109
-            B = 16777468.947
+    # None Checked.
+    @staticmethod
+    def get_shift(mm_per_second):
+        if 0 <= mm_per_second < 7:
+            # return 64752.0, 51308, 0  # 2020
+            return 64752.0, 2 * -1010, 0  # 2020
+        if 7 <= mm_per_second <= 25.4:
+            # return 64752.0, 615699, 1
+            return 64752.0, 24 * -1010, 1  # 2020
+        if 25.4 < mm_per_second <= 60:
+            # return 64752.0, 615699, 2  # 24240
+            return 64752.0, 24 * -1010, 2  # 2020
+        if 60 < mm_per_second < 127:
+            # return 64640.0, 615707, 3
+            return 64640.0, 24 * -1010, 3  # 2020
+        if 127 <= mm_per_second <= 240:
+            # return 64512, 615552, 4  # 24234.33
+            return 64512, 24 * -1010, 4
         else:
-            M = 2405.008
-            B = 252.944
-        speed_code = self.speed_code(feed, B, M)
-        if step == 0:
-            speed_text = "C%s000000000" % (speed_code)
+            return 32432.0, 0, 1
+
+    @staticmethod
+    def get_shift_harmonic(mm_per_second):
+        if 0 <= mm_per_second < 7:
+            return 64752.0, 2 * -1010, 1  # 2020
+        if 7 <= mm_per_second <= 25.4:
+            # return 64752.0, 50800, 1 #2000
+            return 64752, -24240, 1
+        if 25.4 < mm_per_second <= 60:
+            # return 64752.0, 50800, 2
+            return 64752, -24240, 2
+        if 60 < mm_per_second < 127:
+            # return 64640, 50800, 3
+            return 64752, -24240, 2
+            # return 64640, -2000, 3
+        if 127 <= mm_per_second <= 240:
+            return 64640, -24240, 3
+        if 240 <= mm_per_second < 321:
+            return 64640, -24240, 3
+        if 321 <= mm_per_second <= 500:
+            # return 59392.0, -248491.0, 4  # should be 307883
+            return 64512, -24240, 4
         else:
-            speed_text = "%sG%03d" % (speed_code, abs(step))
-        speed_text += append_code
-        return speed_text
+            return 62086.0, 0, 1
 
-    def make_diagonal_speed_interpolator(self, board_name):
-        # I have not been able to figure out the relationship between the speeds
-        # in the first column and the codes in the second columns below.
-        # these codes somehow ensure the speeds on the diagonal are the same horizontal
-        # and vertical moves.  For now we will just use tables and interpolate as needed.
-        vals = [
-            [0.100, 523],
-            [0.200, 261],
-            [0.300, 174],
-            [0.400, 130],
-            [0.500, 104],
-            [0.600, 87],
-            [0.700, 74],
-            [0.800, 65112],
-            [0.900, 58043],
-            [1.000, 26044],
-            [2.000, 8185],
-            [3.000, 4092],
-            [4.000, 2158],
-            [5.000, 1190],
-            [6.000, 1063],
-            [7.000, 11055],
-            [8.000, 8185],
-            [9.000, 6250],
-            [10.000, 5182],
-            [15.000, 2158],
-            [20.000, 1126],
-            [30.000, 172],
-            [50.000, 63],
-            [100.000, 15],
-            [150.000, 8],
-            [200.000, 6]
-        ]
-
-        xvals = []
-        yvals = []
-        for i in range(len(vals)):
-            xvals.append(vals[i][0])
-            yvals.append(vals[i][1])
-        return interpolate(xvals, yvals)
-
-    def speed_code(self, feed, B, M):
-        V = B - M / float(feed)
-        C1 = floor(V)
-        C2 = floor((V - C1) * 255.0)
-        s_code = "V%03d%03d%d" % (C1, C2, 1)
-        # s_code = "V%03d %03d %d" %(C1,C2,1)
-        return s_code
-
-
-if __name__ == "__main__":
-    board = LaserB2()
-    # values  = [.1,.2,.3,.4,.5,.6,.7,.8,.9,1,2,3,4,5,6,7,8,9,10,20,30,40,50,70,90,100]
-    values = [.01, .05, .1, 10, 400]
-    step = 0
-    for value_in in values:
-        print("% 8.2f" % value_in, ": ",)
-        print(board.make_speed(value_in, step=step))
-    print("DONE")
+    def make_speed_code(self, mm_per_second, harmonic_step=0, percent=0):
+        if harmonic_step != 0:
+            shifts = self.get_shift_harmonic(mm_per_second)
+        else:
+            shifts = self.get_shift(mm_per_second)
+        value = LaserSpeed.get_value_from_speed(mm_per_second, shifts)
+        encoded_speed_value = LaserSpeed.encode_value(value)
+        shift = shifts[3]
+        if shift == 0:
+            # This is an error code, and we might be better off not sending it.
+            return "CV%s1" % encoded_speed_value
+        return "CV%s%1d" % (encoded_speed_value, shift)
