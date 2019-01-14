@@ -19,8 +19,7 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 """
-
-from .LaserM2 import LaserM2
+from .LaserSpeed import LaserSpeed
 from .NanoConnection import NanoConnection
 from .Plotter import Plotter
 
@@ -45,7 +44,7 @@ class NanoPlotter(Plotter):
         Plotter.__init__(self)
         self.board = laser_board
         if self.board is None:
-            self.board = LaserM2()
+            self.board = "M2"
         self.connection = connection
         self.usb = usb
         self.state = STATE_DEFAULT
@@ -193,11 +192,11 @@ class NanoPlotter(Plotter):
                     speed = self.previous_set_speed
                 else:
                     speed = DEFAULT_SPEED
-                speed_code = self.board.make_speed(float(speed), harmonic_step)
+                speed_code = LaserSpeed.make_speed_code(speed, harmonic_step, self.board)
             elif isinstance(speed, str):
                 speed_code = speed
             else:
-                speed_code = self.board.make_speed(float(speed), harmonic_step)
+                speed_code = LaserSpeed.make_speed_code(speed, harmonic_step, self.board)
         if changing:
             # We can't perform this operation within concat. We must reset.
             self.connection.write(b'S1E@NSE')  # Jump into compact mode and reset.
