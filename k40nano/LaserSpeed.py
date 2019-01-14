@@ -30,11 +30,13 @@ class LaserSpeed:
         pass
 
     @staticmethod
-    def make_speed_code(mm_per_second, harmonic_step=0, board="M2", d_ratio=0.261204):
+    def make_speed_code(mm_per_second, harmonic_step=0, board="M2", d_ratio=0.261199033289):
         b, m, gear = LaserSpeed.get_gearing(board, mm_per_second, harmonic_step != 0)
 
         speed_value = LaserSpeed.get_value_from_speed(mm_per_second, b, m)
-        speed_value = int(speed_value)
+        v = round(speed_value)
+        if (speed_value - round(speed_value)) > 0.005:
+            speed_value = ceil(speed_value)
         encoded_speed = LaserSpeed.encode_value(speed_value)
 
         if d_ratio == 0 or harmonic_step != 0 or board == "A" or board == "B" or board == "M":
@@ -58,10 +60,12 @@ class LaserSpeed:
                 )
         else:
             step_value = int(floor(mm_per_second) + 1)
-            d_value = b * d_ratio
-            d_value /= float(step_value)
-            d_value /= mm_per_second
-            d_value = ceil(d_value)
+            frequency_kHz = float(mm_per_second) / 25.4
+            try:
+                period_in_ms = 1 / frequency_kHz
+            except ZeroDivisionError:
+                period_in_ms = 0
+            d_value = d_ratio * -m * period_in_ms / float(step_value)
             encoded_diagonal = LaserSpeed.encode_value(d_value)
             if gear == 0:
                 return "CV%s1%03d%sC" % (
