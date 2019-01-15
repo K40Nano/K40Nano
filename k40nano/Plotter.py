@@ -49,7 +49,7 @@ class Plotter:
     def enter_concat_mode(self):
         pass
 
-    def enter_compact_mode(self, speed=None, harmonic_step=None):
+    def enter_compact_mode(self, speed=None, raster_step=None):
         pass
 
     def exit_compact_mode_finish(self):
