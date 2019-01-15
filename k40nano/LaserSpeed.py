@@ -126,7 +126,7 @@ class LaserSpeed:
             return code_value, gear, step_value, diagonal, raster_step
         else:
             if "G" in speed_code:
-                raster_step = int(speed_code[-3:0])
+                raster_step = int(speed_code[-3:])
             return code_value, gear, 1, 1, raster_step
 
     @staticmethod
