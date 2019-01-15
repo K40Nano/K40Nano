@@ -3085,7 +3085,7 @@ class TestLaserSpeeds(unittest.TestCase):
             board = values[1]
             mm_per_second = float(values[2])
             step_amount = int(values[3])
-            created_speedcode = LaserSpeed.make_speed_code(mm_per_second, step_amount, board)
+            created_speedcode = LaserSpeed.get_code_from_speed(mm_per_second, step_amount, board)
             print("%s %s ~= %s" % (board, created_speedcode, speed_code))
             if "G" in speed_code:
                 self.assertAlmostEqual(
@@ -3110,7 +3110,7 @@ class TestLaserSpeeds(unittest.TestCase):
             board = values[1]
             mm_per_second = float(values[2])
             step_amount = int(values[3])
-            created_speedcode = LaserSpeed.make_speed_code(mm_per_second, step_amount, board)
+            created_speedcode = LaserSpeed.get_code_from_speed(mm_per_second, step_amount, board)
             print("%s %s ~= %s" % (board, created_speedcode, speed_code))
             if "G" in speed_code:
                 self.assertEqual(created_speedcode[7], speed_code[7])
@@ -3130,7 +3130,7 @@ class TestLaserSpeeds(unittest.TestCase):
                 continue
             mm_per_second = float(values[2])
             step_amount = int(values[3])
-            created_speedcode = LaserSpeed.make_speed_code(mm_per_second, step_amount, board)
+            created_speedcode = LaserSpeed.get_code_from_speed(mm_per_second, step_amount, board)
             print("%s %s ~= %s" % (board, created_speedcode, speed_code))
             if "G" in speed_code:
                 continue
@@ -3152,7 +3152,7 @@ class TestLaserSpeeds(unittest.TestCase):
                 continue
             mm_per_second = float(values[2])
             step_amount = int(values[3])
-            created_speedcode = LaserSpeed.make_speed_code(mm_per_second, step_amount, board)
+            created_speedcode = LaserSpeed.get_code_from_speed(mm_per_second, step_amount, board)
             print("%s %s ~= %s" % (board, created_speedcode, speed_code))
             if "G" in speed_code:
                 continue
@@ -3179,8 +3179,6 @@ class TestLaserSpeeds(unittest.TestCase):
             if mm_per_second > 240 and step_amount == 0:
                 mm_per_second = 19.05
             b, m, gear = LaserSpeed.get_gearing(board, mm_per_second, float(step_amount) != 0)
-            if m == 0:
-                continue  # Out of range speed codes cannot be decoded.
             parsed = LaserSpeed.parse_speed_code(speed_code)
             determined_speed = LaserSpeed.get_speed_from_value(parsed[0], b, m)
 

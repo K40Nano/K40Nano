@@ -40,9 +40,9 @@ STATE_COMPACT = 3
 
 class NanoPlotter(Plotter):
 
-    def __init__(self, laser_board=None, connection=None, usb=None):
+    def __init__(self, board=None, connection=None, usb=None):
         Plotter.__init__(self)
-        self.board = laser_board
+        self.board = board
         if self.board is None:
             self.board = "M2"
         self.connection = connection
@@ -53,7 +53,7 @@ class NanoPlotter(Plotter):
         self.is_top = False
         self.is_speed = False
         self.is_cut = False
-        self.is_harmonic = False
+        self.is_raster_step = False
 
         self.set_step = None
         self.set_speed_code = None
@@ -150,7 +150,7 @@ class NanoPlotter(Plotter):
         self.is_on = False
         return True
 
-    def enter_compact_mode(self, speed=None, harmonic_step=None):
+    def enter_compact_mode(self, speed=None, raster_step=None):
         if self.state == STATE_COMPACT:
             return
         if self.state == STATE_DEFAULT:
@@ -168,35 +168,35 @@ class NanoPlotter(Plotter):
                                    )
                            )
                    ) or (
-                           self.is_harmonic and
-                           harmonic_step is not None and
-                           self.set_step != harmonic_step
+                           self.is_raster_step and
+                           raster_step is not None and
+                           self.set_step != raster_step
                    ) or (
                            self.is_cut and
                            (
-                                   harmonic_step is not None and
-                                   harmonic_step != 0
+                                   raster_step is not None and
+                                   raster_step != 0
                            )
                    )
 
-        if speed is None and harmonic_step is None and self.previous_set_speed_code is not None:
+        if speed is None and raster_step is None and self.previous_set_speed_code is not None:
             speed_code = self.previous_set_speed_code
         else:
-            if harmonic_step is None:
+            if raster_step is None:
                 if self.previous_set_step is not None:
-                    harmonic_step = self.previous_set_step
+                    raster_step = self.previous_set_step
                 else:
-                    harmonic_step = 0
+                    raster_step = 0
             if speed is None:
                 if self.previous_set_speed is not None:
                     speed = self.previous_set_speed
                 else:
                     speed = DEFAULT_SPEED
-                speed_code = LaserSpeed.make_speed_code(speed, harmonic_step, self.board)
+                speed_code = LaserSpeed.get_code_from_speed(speed, raster_step, self.board)
             elif isinstance(speed, str):
                 speed_code = speed
             else:
-                speed_code = LaserSpeed.make_speed_code(speed, harmonic_step, self.board)
+                speed_code = LaserSpeed.get_code_from_speed(speed, raster_step, self.board)
         if changing:
             # We can't perform this operation within concat. We must reset.
             self.connection.write(b'S1E@NSE')  # Jump into compact mode and reset.
@@ -209,11 +209,11 @@ class NanoPlotter(Plotter):
         if speed is not None and isinstance(speed, (float, int)):
             self.set_speed_value = speed
             self.previous_set_speed = speed
-        if harmonic_step is not None:
-            self.set_step = harmonic_step
-            self.previous_set_step = harmonic_step
+        if raster_step is not None:
+            self.set_step = raster_step
+            self.previous_set_step = raster_step
         self.is_speed = True
-        self.is_harmonic = 'G' in speed_code
+        self.is_raster_step = 'G' in speed_code
         self.is_cut = 'C' in speed_code
 
         self.declare_directions()
@@ -302,7 +302,7 @@ class NanoPlotter(Plotter):
         self.set_speed_value = None
         self.set_speed_code = None
         self.is_cut = False
-        self.is_harmonic = False
+        self.is_raster_step = False
 
     def move_x(self, dx):
         if dx > 0:
@@ -343,7 +343,7 @@ class NanoPlotter(Plotter):
 
     def move_right(self, dx=0):
         self.current_x += dx
-        if self.is_harmonic and self.is_left:
+        if self.is_raster_step and self.is_left:
             # TODO: Properly account for the distance of diagonal
             if self.is_top:
                 self.current_y -= self.set_step
@@ -358,7 +358,7 @@ class NanoPlotter(Plotter):
 
     def move_left(self, dx=0):
         self.current_x -= abs(dx)
-        if self.is_harmonic and not self.is_left:
+        if self.is_raster_step and not self.is_left:
             # TODO: Properly account for the distance of diagonal
             if self.is_top:
                 self.current_y -= self.set_step
@@ -373,7 +373,7 @@ class NanoPlotter(Plotter):
 
     def move_bottom(self, dy=0):
         self.current_y += dy
-        if self.is_harmonic and self.is_top:
+        if self.is_raster_step and self.is_top:
             # TODO: Properly account for the distance of diagonal, and difference with Top/Bottom transitions
             if self.is_left:
                 self.current_x -= self.set_step
@@ -389,7 +389,7 @@ class NanoPlotter(Plotter):
     def move_top(self, dy=0):
         self.current_y -= abs(dy)
         self.is_top = True
-        if self.is_harmonic and not self.is_top:
+        if self.is_raster_step and not self.is_top:
             # TODO: Properly account for the distance of diagonal, and difference with Top/Bottom transitions
             if self.is_left:
                 self.current_x -= self.set_step

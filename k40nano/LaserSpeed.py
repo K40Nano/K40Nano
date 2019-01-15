@@ -30,33 +30,34 @@ class LaserSpeed:
         pass
 
     @staticmethod
-    def make_speed_code(mm_per_second, harmonic_step=0, board="M2", d_ratio=0.261199033289):
-        if mm_per_second > 240 and harmonic_step == 0:
+    def get_speed_from_code(speed_code, board="M2"):
+        code_value, gear, step_value, diagonal, raster_step = LaserSpeed.parse_speed_code(speed_code)
+        b, m, gear = LaserSpeed.get_gearing(board, code_value, raster_step==0)
+        return LaserSpeed.get_speed_from_value(code_value, b, m)
+
+    @staticmethod
+    def get_code_from_speed(mm_per_second, raster_step=0, board="M2", d_ratio=0.261199033289):
+        if mm_per_second > 240 and raster_step == 0:
             mm_per_second = 19.05
-        # if (board == "M2" or board == "M1") and mm_per_second > 240 and not harmonic_step:
-        #     mm_per_second = 19.05  # emulate fully.
-        # if board == "B2" and mm_per_second > 240 and not harmonic_step:
-        #     #mm_per_second = 19.1925187032 # emulate fully
-        #     mm_per_second = 19.05
-        b, m, gear = LaserSpeed.get_gearing(board, mm_per_second, harmonic_step != 0)
+        b, m, gear = LaserSpeed.get_gearing(board, mm_per_second, raster_step != 0)
 
         speed_value = LaserSpeed.get_value_from_speed(mm_per_second, b, m)
         if (speed_value - round(speed_value)) > 0.005:
             speed_value = ceil(speed_value)
         encoded_speed = LaserSpeed.encode_value(speed_value)
 
-        if harmonic_step != 0:
+        if raster_step != 0:
             if gear == 0:  # Nothing flags invalid speeds with steps turned on.
                 gear = 1
             return "V%s%1dG%03d" % (
                 encoded_speed,
                 gear,
-                harmonic_step
+                raster_step
             )
 
         if d_ratio == 0 or board == "A" or board == "B" or board == "M":
             # We do not need the diagonal code.
-            if harmonic_step == 0:
+            if raster_step == 0:
                 if gear == 0:
                     return "CV%s1C" % (
                         encoded_speed
@@ -111,24 +112,28 @@ class LaserSpeed:
             speed_code = speed_code[7:]
         gear = int(speed_code[0])
         speed_code = speed_code[1:]
+
         if is_invalid_code:
             gear = 0  # Flags as step zero during code error.
+        raster_step = 0
+
         if normal:
             step_value = 0
             diagonal = 0
             if len(speed_code) > 1:
                 step_value = int(speed_code[:3])
                 diagonal = LaserSpeed.decode_value(speed_code[3:])
-            return code_value, gear, step_value, diagonal
+            return code_value, gear, step_value, diagonal, raster_step
         else:
-            return code_value, gear, 1, 1
+            if "G" in speed_code:
+                raster_step = int(speed_code[-3:0])
+            return code_value, gear, 1, 1, raster_step
 
     @staticmethod
     def get_value_from_speed(mm_per_second, b, m):
         """
         Takes in speed in mm per second and returns speed value.
         """
-
         try:
             frequency_kHz = float(mm_per_second) / 25.4
             period_in_ms = 1 / frequency_kHz
@@ -176,9 +181,9 @@ class LaserSpeed:
         return "%03d%03d" % (b1, b0)
 
     @staticmethod
-    def get_gearing(board, mm_per_second, harmonic=False):
+    def get_gearing(board, mm_per_second, uses_raster_step=False):
         if board == "A" or board == "B" or board == "B1":
-            if not harmonic:
+            if not uses_raster_step:
                 if 0 <= mm_per_second <= 25.4:
                     return 64752.0, -2000.0, 1
                 if 25.4 < mm_per_second <= 60:
@@ -201,7 +206,7 @@ class LaserSpeed:
                 if 321 <= mm_per_second:
                     return 64512.0, -2000.0, 4
         if board == "B2":
-            if not harmonic:
+            if not uses_raster_step:
                 if 0 <= mm_per_second < 7:
                     return 64752.0, -2020.0, 0  # -2020 is -24240 / 12
                 if 7 <= mm_per_second <= 25.4:
@@ -228,7 +233,7 @@ class LaserSpeed:
                 if 321 <= mm_per_second:
                     return 64512.0, -24240.0, 4
         if board == "M":
-            if not harmonic:
+            if not uses_raster_step:
                 if 0 <= mm_per_second < 6:
                     return 60416.0, -12120.0, 0
                 if 6 <= mm_per_second <= 25.4:
@@ -251,7 +256,7 @@ class LaserSpeed:
                 if 320 < mm_per_second:
                     return 59392.0, -12120.0, 4
         if board == "M1":
-            if not harmonic:
+            if not uses_raster_step:
                 if 0 <= mm_per_second < 7:
                     return 60416.0, -12120.0, 0
                 if 7 <= mm_per_second <= 25.4:
@@ -274,7 +279,7 @@ class LaserSpeed:
                 if 320 < mm_per_second:
                     return 59392.0, -12120.0, 4
         if board == "M2":
-            if not harmonic:
+            if not uses_raster_step:
                 if 0 <= mm_per_second < 7:
                     return 65528.0, -1010.0, 0  # -1010 is -12120 / 12
                 if 7 <= mm_per_second <= 25.4:

@@ -47,7 +47,7 @@ class TestNanoController(unittest.TestCase):
             plotter.enter_compact_mode(50)
             plotter.move(1, 0)
             plotter.move(0, 1)
-            speed_code = LaserSpeed.make_speed_code(50.0, 0, plotter.board)
+            speed_code = LaserSpeed.get_code_from_speed(50.0, 0, plotter.board)
         match = "I" + speed_code + "NRBS1EBaRaFNSE\n"
         lines = []
         with open(filename, "r+") as f:
@@ -60,7 +60,7 @@ class TestNanoController(unittest.TestCase):
         with NanoPlotter(connection=FileWriteConnection(filename)) as plotter:
             plotter.enter_compact_mode(50)
             plotter.move(1, 1)
-            speed_code = LaserSpeed.make_speed_code(50.0, 0, plotter.board)
+            speed_code = LaserSpeed.get_code_from_speed(50.0, 0, plotter.board)
         match = "I" + speed_code + "NRBS1EMaFNSE\n"
         lines = []
         with open(filename, "r+") as f:
@@ -77,7 +77,7 @@ class TestNanoController(unittest.TestCase):
             plotter.exit_compact_mode_reset()
             plotter.enter_compact_mode()
             plotter.move(1, 1)
-            speed_code = LaserSpeed.make_speed_code(50.0, 0, plotter.board)
+            speed_code = LaserSpeed.get_code_from_speed(50.0, 0, plotter.board)
         match = "I" + speed_code + "NRBS1EBaRa@NSE" + speed_code + "NRBS1EMaFNSE\n"
         lines = []
         with open(filename, "r+") as f:
@@ -95,8 +95,8 @@ class TestNanoController(unittest.TestCase):
             plotter.exit_compact_mode_reset()
             plotter.enter_compact_mode(75)
             plotter.move(1, 1)
-            speed_code0 = LaserSpeed.make_speed_code(50.0, 0, plotter.board)
-            speed_code1 = LaserSpeed.make_speed_code(75.0, 0, plotter.board)
+            speed_code0 = LaserSpeed.get_code_from_speed(50.0, 0, plotter.board)
+            speed_code1 = LaserSpeed.get_code_from_speed(75.0, 0, plotter.board)
         match = "I" + speed_code0 + "NRBS1EBaRa@NSE" + speed_code1 + "NRBS1EMaFNSE\n"
         lines = []
         with open(filename, "r+") as f:
@@ -114,8 +114,8 @@ class TestNanoController(unittest.TestCase):
             plotter.move(2, 2)
             plotter.enter_compact_mode(75)
             plotter.move(1, 1)
-            speed_code0 = LaserSpeed.make_speed_code(50.0, 0, plotter.board)
-            speed_code1 = LaserSpeed.make_speed_code(75.0, 0, plotter.board)
+            speed_code0 = LaserSpeed.get_code_from_speed(50.0, 0, plotter.board)
+            speed_code1 = LaserSpeed.get_code_from_speed(75.0, 0, plotter.board)
         match = "I" + speed_code0 + "NRBS1EBaRa@NSEBbRbN" + speed_code1 + "NRBS1EMaFNSE\n"
         lines = []
         with open(filename, "r+") as f:
@@ -133,7 +133,7 @@ class TestNanoController(unittest.TestCase):
             plotter.move(2, 2)
             plotter.enter_compact_mode()
             plotter.move(1, 1)
-            speed_code0 = LaserSpeed.make_speed_code(50.0, 0, plotter.board)
+            speed_code0 = LaserSpeed.get_code_from_speed(50.0, 0, plotter.board)
         match = "I" + speed_code0 + "NRBS1EBaRa@NSEBbRbN" + speed_code0 + "NRBS1EMaFNSE\n"
         lines = []
         with open(filename, "r+") as f:
