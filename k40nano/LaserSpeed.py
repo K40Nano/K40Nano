@@ -31,15 +31,30 @@ class LaserSpeed:
 
     @staticmethod
     def make_speed_code(mm_per_second, harmonic_step=0, board="M2", d_ratio=0.261199033289):
+        if mm_per_second > 240 and harmonic_step == 0:
+            mm_per_second = 19.05
+        # if (board == "M2" or board == "M1") and mm_per_second > 240 and not harmonic_step:
+        #     mm_per_second = 19.05  # emulate fully.
+        # if board == "B2" and mm_per_second > 240 and not harmonic_step:
+        #     #mm_per_second = 19.1925187032 # emulate fully
+        #     mm_per_second = 19.05
         b, m, gear = LaserSpeed.get_gearing(board, mm_per_second, harmonic_step != 0)
 
         speed_value = LaserSpeed.get_value_from_speed(mm_per_second, b, m)
-        v = round(speed_value)
         if (speed_value - round(speed_value)) > 0.005:
             speed_value = ceil(speed_value)
         encoded_speed = LaserSpeed.encode_value(speed_value)
 
-        if d_ratio == 0 or harmonic_step != 0 or board == "A" or board == "B" or board == "M":
+        if harmonic_step != 0:
+            if gear == 0:  # Nothing flags invalid speeds with steps turned on.
+                gear = 1
+            return "V%s%1dG%03d" % (
+                encoded_speed,
+                gear,
+                harmonic_step
+            )
+
+        if d_ratio == 0 or board == "A" or board == "B" or board == "M":
             # We do not need the diagonal code.
             if harmonic_step == 0:
                 if gear == 0:
@@ -50,16 +65,8 @@ class LaserSpeed:
                     return "CV%s%1d" % (
                         encoded_speed,
                         gear)
-            else:
-                if gear == 0:  # Nothing flags invalid speeds with steps turned on.
-                    gear = 1
-                return "CV%s%1dG%03d" % (
-                    encoded_speed,
-                    gear,
-                    harmonic_step
-                )
         else:
-            step_value = int(floor(mm_per_second) + 1)
+            step_value = min(int(floor(mm_per_second) + 1), 128)
             frequency_kHz = float(mm_per_second) / 25.4
             try:
                 period_in_ms = 1 / frequency_kHz
@@ -165,7 +172,7 @@ class LaserSpeed:
     def encode_value(value):
         value = int(value)
         b0 = value & 255
-        b1 = (value >> 8) & 0xFFFFFFFF  # unsigned shift, to emulate bugged form.
+        b1 = (value >> 8) & 0xFFFFFF  # unsigned shift, to emulate bugged form.
         return "%03d%03d" % (b1, b0)
 
     @staticmethod
@@ -178,7 +185,7 @@ class LaserSpeed:
                     return 64752.0, -2000.0, 2
                 if 60 < mm_per_second < 127:
                     return 64640.0, -2000.0, 3
-                if 127 <= mm_per_second <= 240:
+                if 127 <= mm_per_second:
                     return 64512.0, -2000.0, 4
             else:
                 if 0 <= mm_per_second <= 25.4:
@@ -191,9 +198,8 @@ class LaserSpeed:
                     return 64640.0, -2000.0, 3
                 if 240 < mm_per_second <= 320:
                     return 64640.0, -2000.0, 3
-                if 321 <= mm_per_second <= 500:
+                if 321 <= mm_per_second:
                     return 64512.0, -2000.0, 4
-            return 62086.0, 0.0, 1
         if board == "B2":
             if not harmonic:
                 if 0 <= mm_per_second < 7:
@@ -204,7 +210,7 @@ class LaserSpeed:
                     return 64752.0, -24240.0, 2
                 if 60 < mm_per_second < 127:
                     return 64640.0, -24240.0, 3
-                if 127 <= mm_per_second <= 240:
+                if 127 <= mm_per_second:
                     return 64512.0, -24240.0, 4
             else:
                 if 0 <= mm_per_second < 7:
@@ -219,9 +225,8 @@ class LaserSpeed:
                     return 64640.0, -24240.0, 3
                 if 240 <= mm_per_second < 321:
                     return 64640.0, -24240.0, 3
-                if 321 <= mm_per_second <= 500:
+                if 321 <= mm_per_second:
                     return 64512.0, -24240.0, 4
-            return 32432.0, 0.0, 1
         if board == "M":
             if not harmonic:
                 if 0 <= mm_per_second < 6:
@@ -232,7 +237,7 @@ class LaserSpeed:
                     return 60416.0, -12120.0, 2
                 if 60 < mm_per_second < 127:
                     return 59904.0, -12120.0, 3
-                if 127 <= mm_per_second <= 240:
+                if 127 <= mm_per_second:
                     return 59392.0, -12120.0, 4
             else:
                 if 0 <= mm_per_second < 6:
@@ -243,9 +248,8 @@ class LaserSpeed:
                     return 60416.0, -12120.0, 2
                 if 127 <= mm_per_second <= 320:
                     return 59904.0, -12120.0, 3
-                if 320 < mm_per_second <= 500:
+                if 320 < mm_per_second:
                     return 59392.0, -12120.0, 4
-            return 44256.0, 0.0, 1
         if board == "M1":
             if not harmonic:
                 if 0 <= mm_per_second < 7:
@@ -256,7 +260,7 @@ class LaserSpeed:
                     return 60416.0, -12120.0, 2
                 if 60 < mm_per_second < 127:
                     return 59904.0, -12120.0, 3
-                if 127 <= mm_per_second <= 240:
+                if 127 <= mm_per_second:
                     return 59392.0, -12120.0, 4
             else:
                 if 0 <= mm_per_second < 6:
@@ -267,9 +271,8 @@ class LaserSpeed:
                     return 60416.0, -12120.0, 2
                 if 127 <= mm_per_second <= 320:
                     return 59904.0, -12120.0, 3
-                if 320 < mm_per_second <= 500:
+                if 320 < mm_per_second:
                     return 59392.0, -12120.0, 4
-            return 44256.0, 0.0, 1
         if board == "M2":
             if not harmonic:
                 if 0 <= mm_per_second < 7:
@@ -280,7 +283,7 @@ class LaserSpeed:
                     return 60416.0, -12120.0, 2
                 if 60 < mm_per_second < 127:
                     return 59904.0, -12120.0, 3
-                if 127 <= mm_per_second <= 240:
+                if 127 <= mm_per_second:
                     return 59392.0, -12120.0, 4
             else:
                 if 0 <= mm_per_second < 7:
@@ -291,6 +294,5 @@ class LaserSpeed:
                     return 60416.0, -12120.0, 2
                 if 127 <= mm_per_second <= 320:
                     return 59904.0, -12120.0, 3
-                if 320 < mm_per_second <= 500:
+                if 320 < mm_per_second:
                     return 59392.0, -12120.0, 4
-            return 44256.0, 0.0, 1
