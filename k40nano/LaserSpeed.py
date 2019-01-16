@@ -32,7 +32,8 @@ class LaserSpeed:
     @staticmethod
     def get_speed_from_code(speed_code, board="M2"):
         code_value, gear, step_value, diagonal, raster_step = LaserSpeed.parse_speed_code(speed_code)
-        b, m, gear = LaserSpeed.get_gearing(board, code_value, raster_step==0)
+        # b, m, gear = LaserSpeed.get_gearing(board, code_value, raster_step == 0)
+        b, m, gear = LaserSpeed.get_gearing(board, gear=gear, uses_raster_step=raster_step != 0)
         return LaserSpeed.get_speed_from_value(code_value, b, m)
 
     @staticmethod
@@ -90,22 +91,20 @@ class LaserSpeed:
 
     @staticmethod
     def parse_speed_code(speed_code):
-        is_invalid_code = False
+        is_shortened = False
         normal = False
         if speed_code[0] == "C":
             speed_code = speed_code[1:]
             normal = True
         if speed_code[-1] == "C":
             speed_code = speed_code[:-1]
-            is_invalid_code = True
+            is_shortened = True
             # This is an error speed.
         if "V1677" in speed_code or "V1676" in speed_code:
             # The 4th character can only be 0,1,2 except for error speeds.
             code_value = LaserSpeed.decode_value(speed_code[1:12])
             speed_code = speed_code[12:]
-            is_invalid_code = True
-            # This is an error speed.
-            # The value for this speed is so low, it turned negative
+            # The value for this speed is so low, it's negative
             # and bit-shifted in 24 bits of a negative number.
         else:
             code_value = LaserSpeed.decode_value(speed_code[1:7])
@@ -113,7 +112,7 @@ class LaserSpeed:
         gear = int(speed_code[0])
         speed_code = speed_code[1:]
 
-        if is_invalid_code:
+        if is_shortened:
             gear = 0  # Flags as step zero during code error.
         raster_step = 0
 
@@ -181,123 +180,52 @@ class LaserSpeed:
         return "%03d%03d" % (b1, b0)
 
     @staticmethod
-    def get_gearing(board, mm_per_second, uses_raster_step=False):
-        if board == "A" or board == "B" or board == "B1":
-            if not uses_raster_step:
-                if 0 <= mm_per_second <= 25.4:
-                    return 64752.0, -2000.0, 1
-                if 25.4 < mm_per_second <= 60:
-                    return 64752.0, -2000.0, 2
-                if 60 < mm_per_second < 127:
-                    return 64640.0, -2000.0, 3
-                if 127 <= mm_per_second:
-                    return 64512.0, -2000.0, 4
-            else:
-                if 0 <= mm_per_second <= 25.4:
-                    return 64752.0, -2000.0, 1
-                if 25.4 < mm_per_second <= 60:
-                    return 64752.0, -2000.0, 2
-                if 60 < mm_per_second < 127:
-                    return 64752.0, -2000.0, 2
-                if 127 <= mm_per_second <= 240:
-                    return 64640.0, -2000.0, 3
-                if 240 < mm_per_second <= 320:
-                    return 64640.0, -2000.0, 3
-                if 321 <= mm_per_second:
-                    return 64512.0, -2000.0, 4
+    def get_gear_for_speed(mm_per_second, uses_raster_step=False):
+        if mm_per_second <= 25.4:
+            return 1
+        if 25.4 < mm_per_second <= 60:
+            return 2
+        if not uses_raster_step:
+            if 60 < mm_per_second < 127:
+                return 3
+            if 127 <= mm_per_second:
+                return 4
+        else:
+            if 60 < mm_per_second < 127:
+                return 2
+            if 127 <= mm_per_second <= 320:
+                return 3
+            if 320 <= mm_per_second:
+                return 4
+
+    @staticmethod
+    def get_gearing(board, mm_per_second=None, uses_raster_step=False, gear=None):
+        if gear is None:
+            gear = LaserSpeed.get_gear_for_speed(mm_per_second, uses_raster_step)
+        if gear is None:
+            gear = 0
+        b_values = [64752.0, 64752.0, 64640.0, 64512.0]
+        m = -2000.0
+        if board[0] == "M":  # any M series board
+            b_values = [60416.0, 60416.0, 59904.0, 59392.0]
+            m = -12120.0
         if board == "B2":
-            if not uses_raster_step:
-                if 0 <= mm_per_second < 7:
-                    return 64752.0, -2020.0, 0  # -2020 is -24240 / 12
-                if 7 <= mm_per_second <= 25.4:
-                    return 64752.0, -24240.0, 1
-                if 25.4 < mm_per_second <= 60:
-                    return 64752.0, -24240.0, 2
-                if 60 < mm_per_second < 127:
-                    return 64640.0, -24240.0, 3
-                if 127 <= mm_per_second:
-                    return 64512.0, -24240.0, 4
-            else:
-                if 0 <= mm_per_second < 7:
-                    return 64752.0, -2020.0, 1
-                if 7 <= mm_per_second <= 25.4:
-                    return 64752.0, -24240.0, 1
-                if 25.4 < mm_per_second <= 60:
-                    return 64752.0, -24240.0, 2
-                if 60 < mm_per_second < 127:
-                    return 64752.0, -24240.0, 2
-                if 127 <= mm_per_second <= 240:
-                    return 64640.0, -24240.0, 3
-                if 240 <= mm_per_second < 321:
-                    return 64640.0, -24240.0, 3
-                if 321 <= mm_per_second:
-                    return 64512.0, -24240.0, 4
-        if board == "M":
-            if not uses_raster_step:
-                if 0 <= mm_per_second < 6:
-                    return 60416.0, -12120.0, 0
-                if 6 <= mm_per_second <= 25.4:
-                    return 60416.0, -12120.0, 1
-                if 25.4 < mm_per_second <= 60:
-                    return 60416.0, -12120.0, 2
-                if 60 < mm_per_second < 127:
-                    return 59904.0, -12120.0, 3
-                if 127 <= mm_per_second:
-                    return 59392.0, -12120.0, 4
-            else:
-                if 0 <= mm_per_second < 6:
-                    return 60416.0, -12120.0, 0
-                if 6 <= mm_per_second <= 25.4:
-                    return 60416.0, -12120.0, 1
-                if 25.4 < mm_per_second < 127:
-                    return 60416.0, -12120.0, 2
-                if 127 <= mm_per_second <= 320:
-                    return 59904.0, -12120.0, 3
-                if 320 < mm_per_second:
-                    return 59392.0, -12120.0, 4
-        if board == "M1":
-            if not uses_raster_step:
-                if 0 <= mm_per_second < 7:
-                    return 60416.0, -12120.0, 0
-                if 7 <= mm_per_second <= 25.4:
-                    return 60416.0, -12120.0, 1
-                if 25.4 < mm_per_second <= 60:
-                    return 60416.0, -12120.0, 2
-                if 60 < mm_per_second < 127:
-                    return 59904.0, -12120.0, 3
-                if 127 <= mm_per_second:
-                    return 59392.0, -12120.0, 4
-            else:
-                if 0 <= mm_per_second < 6:
-                    return 60416.0, -12120.0, 0
-                if 6 <= mm_per_second <= 25.4:
-                    return 60416.0, -12120.0, 1
-                if 25.4 < mm_per_second < 127:
-                    return 60416.0, -12120.0, 2
-                if 127 <= mm_per_second <= 320:
-                    return 59904.0, -12120.0, 3
-                if 320 < mm_per_second:
-                    return 59392.0, -12120.0, 4
-        if board == "M2":
-            if not uses_raster_step:
-                if 0 <= mm_per_second < 7:
-                    return 65528.0, -1010.0, 0  # -1010 is -12120 / 12
-                if 7 <= mm_per_second <= 25.4:
-                    return 60416.0, -12120.0, 1
-                if 25.4 < mm_per_second <= 60:
-                    return 60416.0, -12120.0, 2
-                if 60 < mm_per_second < 127:
-                    return 59904.0, -12120.0, 3
-                if 127 <= mm_per_second:
-                    return 59392.0, -12120.0, 4
-            else:
-                if 0 <= mm_per_second < 7:
+            m = -24240.0
+
+        if mm_per_second is not None or gear == 0:
+            if board == "B2":
+                if mm_per_second is None or mm_per_second < 7:
+                    if uses_raster_step:
+                        return 64752.0, -2020.0, 1
+                    else:
+                        return 64752.0, -2020.0, 0
+            elif board == "M":
+                if mm_per_second is None or mm_per_second < 6:
+                    return b_values[0], m, 0
+            elif board == "M1":
+                if mm_per_second is None or mm_per_second < 6 or (not uses_raster_step and mm_per_second < 7):
+                    return b_values[0], m, 0
+            elif board == "M2":
+                if mm_per_second is None or mm_per_second < 7:
                     return 65528.0, -1010.0, 0
-                if 7 <= mm_per_second <= 25.4:
-                    return 60416.0, -12120.0, 1
-                if 25.4 < mm_per_second < 127:
-                    return 60416.0, -12120.0, 2
-                if 127 <= mm_per_second <= 320:
-                    return 59904.0, -12120.0, 3
-                if 320 < mm_per_second:
-                    return 59392.0, -12120.0, 4
+        return b_values[gear - 1], m, gear
