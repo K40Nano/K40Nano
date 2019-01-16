@@ -214,18 +214,18 @@ class LaserSpeed:
 
         if mm_per_second is not None or gear == 0:
             if board == "B2":
-                if mm_per_second < 7:
+                if mm_per_second is None or mm_per_second < 7:
                     if uses_raster_step:
                         return 64752.0, -2020.0, 1
                     else:
                         return 64752.0, -2020.0, 0
             elif board == "M":
-                if mm_per_second < 6:
+                if mm_per_second is None or mm_per_second < 6:
                     return b_values[0], m, 0
             elif board == "M1":
-                if mm_per_second < 6 or (not uses_raster_step and mm_per_second < 7):
+                if mm_per_second is None or mm_per_second < 6 or (not uses_raster_step and mm_per_second < 7):
                     return b_values[0], m, 0
             elif board == "M2":
-                if mm_per_second < 7:
+                if mm_per_second is None or mm_per_second < 7:
                     return 65528.0, -1010.0, 0
         return b_values[gear - 1], m, gear
