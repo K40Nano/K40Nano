@@ -3175,8 +3175,6 @@ class TestLaserSpeeds(unittest.TestCase):
             speed_code = values[0]
             board = values[1]
             mm_per_second = float(values[2])
-            if mm_per_second == 7:
-                print("check this.")
             determined_speed = LaserSpeed.get_speed_from_code(speed_code, board)
 
             print("%s %s  %f ~= %f" % (board, speed_code, mm_per_second, determined_speed))
@@ -3191,9 +3189,59 @@ class TestLaserSpeeds(unittest.TestCase):
     def test_full_circle(self):
         boards = ["A", "B", "B1", "B2", "M", "M1", "M2"]
         for board in boards:
-            for i in range(1, 2400,3):
+            for i in range(1, 2400, 3):
                 speed = i / 10.0
                 speed_code = LaserSpeed.get_code_from_speed(speed, board=board)
+                determined_speed = LaserSpeed.get_speed_from_code(speed_code, board)
+                print("%s %s  %f ~= %f" % (board, speed_code, speed, determined_speed))
+                self.assertAlmostEqual(determined_speed, speed, delta=speed / 100)
+
+    def test_full_circle_gear0(self):
+        boards = ["A", "B", "B1", "B2", "M", "M1", "M2"]
+        for board in boards:
+            for i in range(1, 2400, 3):
+                speed = i / 10.0
+                speed_code = LaserSpeed.get_code_from_speed(speed, board=board, gear=0)
+                determined_speed = LaserSpeed.get_speed_from_code(speed_code, board)
+                print("%s %s  %f ~= %f" % (board, speed_code, speed, determined_speed))
+                self.assertAlmostEqual(determined_speed, speed, delta=speed / 100)
+
+    def test_full_circle_gear1(self):
+        boards = ["A", "B", "B1", "B2", "M", "M1", "M2"]
+        for board in boards:
+            for i in range(1, 2400, 3):
+                speed = i / 10.0
+                speed_code = LaserSpeed.get_code_from_speed(speed, board=board, gear=1)
+                determined_speed = LaserSpeed.get_speed_from_code(speed_code, board)
+                print("%s %s  %f ~= %f" % (board, speed_code, speed, determined_speed))
+                self.assertAlmostEqual(determined_speed, speed, delta=speed / 100)
+
+    def test_full_circle_gear2(self):
+        boards = ["A", "B", "B1", "B2", "M", "M1", "M2"]
+        for board in boards:
+            for i in range(1, 2400, 3):
+                speed = i / 10.0
+                speed_code = LaserSpeed.get_code_from_speed(speed, board=board, gear=2)
+                determined_speed = LaserSpeed.get_speed_from_code(speed_code, board)
+                print("%s %s  %f ~= %f" % (board, speed_code, speed, determined_speed))
+                self.assertAlmostEqual(determined_speed, speed, delta=speed / 100)
+
+    def test_full_circle_gear3(self):
+        boards = ["A", "B", "B1", "B2", "M", "M1", "M2"]
+        for board in boards:
+            for i in range(1, 2400, 3):
+                speed = i / 10.0
+                speed_code = LaserSpeed.get_code_from_speed(speed, board=board, gear=3)
+                determined_speed = LaserSpeed.get_speed_from_code(speed_code, board)
+                print("%s %s  %f ~= %f" % (board, speed_code, speed, determined_speed))
+                self.assertAlmostEqual(determined_speed, speed, delta=speed / 100)
+
+    def test_full_circle_gear4(self):
+        boards = ["A", "B", "B1", "B2", "M", "M1", "M2"]
+        for board in boards:
+            for i in range(1, 2400, 3):
+                speed = i / 10.0
+                speed_code = LaserSpeed.get_code_from_speed(speed, board=board, gear=4)
                 determined_speed = LaserSpeed.get_speed_from_code(speed_code, board)
                 print("%s %s  %f ~= %f" % (board, speed_code, speed, determined_speed))
                 self.assertAlmostEqual(determined_speed, speed, delta=speed / 100)
@@ -3201,7 +3249,7 @@ class TestLaserSpeeds(unittest.TestCase):
     def test_full_circle_raster(self):
         boards = ["A", "B", "B1", "B2", "M", "M1", "M2"]
         for board in boards:
-            for i in range(70, 5000,3):
+            for i in range(70, 5000, 3):
                 speed = i / 10.0
                 speed_code = LaserSpeed.get_code_from_speed(speed, raster_step=2, board=board)
                 determined_speed = LaserSpeed.get_speed_from_code(speed_code, board)

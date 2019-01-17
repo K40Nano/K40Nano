@@ -37,10 +37,23 @@ class LaserSpeed:
         return LaserSpeed.get_speed_from_value(code_value, b, m)
 
     @staticmethod
-    def get_code_from_speed(mm_per_second, raster_step=0, board="M2", d_ratio=0.261199033289):
+    def get_code_from_speed(mm_per_second, raster_step=0, board="M2", d_ratio=0.261199033289, gear=None):
+        """
+        Get a speedcode from a given speed. The raster step appends the 'G' value and uses speed ranges.
+        The d_ratio uses the default/auto ratio, but might be improved at sqrt(2)-1 (0.41421356).
+        The gearing is optional and forces the speedcode to work for that particular gearing. Gear=0
+        refers to C-suffix notation speeds.
+
+        :param mm_per_second: speed to convert to code.
+        :param raster_step: raster step mode to use.
+        :param board: Nano Board Model to do the conversion for.
+        :param d_ratio: M1, M2, B1, B2 have ratio of optional speed
+        :param gear: Optional force gearing rather than default gear for that speed.
+        :return: speed code produced.
+        """
         if mm_per_second > 240 and raster_step == 0:
-            mm_per_second = 19.05
-        b, m, gear = LaserSpeed.get_gearing(board, mm_per_second, raster_step != 0)
+            mm_per_second = 19.05  # Arbitrary default speed for out range value.
+        b, m, gear = LaserSpeed.get_gearing(board, mm_per_second, raster_step != 0, gear)
 
         speed_value = LaserSpeed.get_value_from_speed(mm_per_second, b, m)
         if (speed_value - round(speed_value)) > 0.005:
@@ -48,7 +61,7 @@ class LaserSpeed:
         encoded_speed = LaserSpeed.encode_value(speed_value)
 
         if raster_step != 0:
-            if gear == 0:  # Nothing flags invalid speeds with steps turned on.
+            if gear == 0:  # There is no C suffix notation for gear raster step.
                 gear = 1
             return "V%s%1dG%03d" % (
                 encoded_speed,
@@ -202,8 +215,7 @@ class LaserSpeed:
     def get_gearing(board, mm_per_second=None, uses_raster_step=False, gear=None):
         if gear is None:
             gear = LaserSpeed.get_gear_for_speed(mm_per_second, uses_raster_step)
-        if gear is None:
-            gear = 0
+        # A, B, B1, B2
         b_values = [64752.0, 64752.0, 64640.0, 64512.0]
         m = -2000.0
         if board[0] == "M":  # any M series board
@@ -211,21 +223,30 @@ class LaserSpeed:
             m = -12120.0
         if board == "B2":
             m = -24240.0
-
-        if mm_per_second is not None or gear == 0:
+        if gear == 0:
             if board == "B2":
-                if mm_per_second is None or mm_per_second < 7:
+                if uses_raster_step:
+                    return b_values[0], m / 12, 1
+                else:
+                    return b_values[0], m / 12, 0
+            elif board == "M" or board == "M1":
+                return b_values[0], m, 0
+            elif board == "M2":
+                return 65528.0, m / 12, 0
+        elif mm_per_second is not None:
+            if board == "B2":
+                if mm_per_second < 7:
                     if uses_raster_step:
-                        return 64752.0, -2020.0, 1
+                        return b_values[0], m / 12, 1
                     else:
-                        return 64752.0, -2020.0, 0
+                        return b_values[0], m / 12, 0
             elif board == "M":
-                if mm_per_second is None or mm_per_second < 6:
+                if mm_per_second < 6:
                     return b_values[0], m, 0
             elif board == "M1":
-                if mm_per_second is None or mm_per_second < 6 or (not uses_raster_step and mm_per_second < 7):
+                if mm_per_second < 6 or (not uses_raster_step and mm_per_second < 7):
                     return b_values[0], m, 0
             elif board == "M2":
-                if mm_per_second is None or mm_per_second < 7:
-                    return 65528.0, -1010.0, 0
+                if mm_per_second < 7:
+                    return 65528.0, m / 12, 0
         return b_values[gear - 1], m, gear
