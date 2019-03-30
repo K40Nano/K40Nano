@@ -58,6 +58,7 @@ class LaserSpeed:
         speed_value = LaserSpeed.get_value_from_speed(mm_per_second, b, m)
         if (speed_value - round(speed_value)) > 0.005:
             speed_value = ceil(speed_value)
+        speed_value = round(speed_value)
         encoded_speed = LaserSpeed.encode_value(speed_value)
 
         if raster_step != 0:
