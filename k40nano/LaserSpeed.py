@@ -267,8 +267,8 @@ class LaserSpeed:
         elif board == "B2":
             if mm_per_second < 9.509 and (mm_per_second >= 7 or uses_raster_step):
                 return 9.509
-            if mm_per_second < 0.785:
-                return 0.785
+            if mm_per_second < 0.793:
+                return 0.793
         elif board == "M" or board == "M1":
             if mm_per_second < 5.096:
                 return 5.096
