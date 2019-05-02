@@ -251,3 +251,36 @@ class LaserSpeed:
                 if mm_per_second < 7:
                     return 65528.0, m / 12, 0
         return b_values[gear - 1], m, gear
+
+    @staticmethod
+    def validate_speed(mm_per_second, board, uses_raster_step=False):
+        """
+        Validate a speed.
+        :param mm_per_second: speed to validate
+        :param board: Nano Board Model
+        :param uses_raster_step: is this speed for a raster_step
+        :return: validated speed.
+           """
+        if board == "A" or board == "B" or board == "B1":
+            if mm_per_second < 0.785:
+                return 0.785
+        elif board == "B2":
+            if mm_per_second < 9.509 and (mm_per_second >= 7 or uses_raster_step):
+                return 9.509
+            if mm_per_second < 0.793:
+                return 0.793
+        elif board == "M" or board == "M1":
+            if mm_per_second < 5.096:
+                return 5.096
+        elif board == "M2":
+            if mm_per_second < 5.096 and uses_raster_step:
+                return 5.096
+            if mm_per_second < 0.392:
+                return 0.392
+        if uses_raster_step:
+            if mm_per_second > 500:
+                return 500.0
+        else:
+            if mm_per_second > 240:
+                return 240.0
+        return mm_per_second

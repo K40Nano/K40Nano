@@ -3196,8 +3196,21 @@ class TestLaserSpeeds(unittest.TestCase):
                 print("%s %s  %f ~= %f" % (board, speed_code, speed, determined_speed))
                 self.assertAlmostEqual(determined_speed, speed, delta=speed / 100)
 
-    def test_full_circle_gear0(self):
+    def test_validate_speeds(self):
         boards = ["A", "B", "B1", "B2", "M", "M1", "M2"]
+        for board in boards:
+            for i in range(0, 25000, 7):
+                speed = i / 100.0
+                i_speed = speed
+                speed = LaserSpeed.validate_speed(speed,board)
+                speed_code = LaserSpeed.get_code_from_speed(speed, board=board)
+                print("%s %f %f = %s" % (board, i_speed, speed, speed_code))
+                if speed_code[-1] == "C":
+                    speed_code = speed_code[0:-1]
+                self.assertTrue(len(speed_code) == 18 or len(speed_code) == 9)
+
+    def test_full_circle_gear0(self):
+        boards = ["B2", "M", "M1", "M2"]
         for board in boards:
             for i in range(1, 2400, 3):
                 speed = i / 10.0
