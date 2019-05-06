@@ -9,21 +9,27 @@ class LaserSpeed:
 
     This is the standard library for converting to and from speed code information for LHYMICRO-GL.
 
-    The units in the speed code have particular bands/gears which switches the equations used to convert
-    between values and speeds. The fundamental units within the speed code value is period. All values
-    are linearly related to the delay between ticks. The device controlled is ultimately a stepper motor
-    and the speed a stepper motor travels at is the result of the time between ticks. We are dealing with
-    a 1000 dpi stepper motor, so for example to travel at 1 inch a second requires that the device tick
-    at 1 kHz. To do this it must delay 1 ms between ticks. This corresponds to a value of 48296 in the M2
-    board. Which has an equation of 60416 - (12120 * T) where T is the period requested in ms. This is
-    equal to 25.4 mm/s. If we want a 2 ms delay, which is half the speed (0.5kHz, 0.5 inches/second,
-    12.7 mm/s) we do 60416 - (12120 * 2) which gives us a value of 36176. This would be encoded a 16 bit
-    number broken up into 2 ascii 3 digit strings between 0-255.  141 for the high bits and 80 for the low
-    bits. So CV1410801 where the final 1 is the gearing equation we used.
+    The units in the speed code have particular bands/gears which slightly modifies the equations used
+    to convert between values and speeds. The fundamental units within the speed code value are period-ticks.
+    All values relate to a value in the counter that count off the number of oscillations within the
+    (typically 21.1184) Mhz crystal. The max value here is 65535, potentially in addition to the diagonal delay.
+
+    The device is ultimately controlling a stepper motor and the speed a stepper motor travels is the result of
+    the time between the ticks. Since the crystal oscillator is the same, the delay is controlled by the counted
+    oscillations subticks, which gives us the time between stepper motor pulses. Most of the devices we are
+    dealing with are 1000 dpi stepper motors, so, for example, to travel at 1 inch a second requires that the
+    device tick at 1 kHz. To do this it must delay 1 ms between ticks. This corresponds to a value of 48296 in
+    the M2 board. Which has an equation of 65536 - (5120 + 12120T) where T is the period requested in ms. This is
+    equal to 25.4 mm/s. If we want a 2 ms delay, which is half the speed (0.5kHz, 0.5 inches/second, 12.7 mm/s)
+    we do 65536 - (5120 + 24240) which gives us a value of 36176. This would be encoded as a 16 bit number
+    broken up into 2 ascii 3 digit strings between 0-255.  141 for the high bits and 80 for the low bits.
+    So CV1410801 where the final character "1" is the gearing equation we used.
 
     The speed in mm/s is also used for determining which gearing to use and as a factor for the horizontal
-    encoded value. Slow down the device down while traveling diagonal to make the diagonal and orthogonal
-    take the same amount of time (thereby cutting to the same depth).
+    encoded value, for some boards (B2, M2). Slowing down the device down while traveling diagonal to make the
+    diagonal and orthogonal take the same amount of time (thereby cutting to the same depth). This is the same
+    period-ticks units and is simply summed with the 65535 - (b + mT) value in cases that both stepper motors
+    are used.
     """
 
     def __init__(self):
