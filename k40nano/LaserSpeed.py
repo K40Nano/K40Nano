@@ -32,7 +32,6 @@ class LaserSpeed:
     @staticmethod
     def get_speed_from_code(speed_code, board="M2"):
         code_value, gear, step_value, diagonal, raster_step = LaserSpeed.parse_speed_code(speed_code)
-        # b, m, gear = LaserSpeed.get_gearing(board, code_value, raster_step == 0)
         b, m, gear = LaserSpeed.get_gearing(board, gear=gear, uses_raster_step=raster_step != 0)
         return LaserSpeed.get_speed_from_value(code_value, b, m)
 
@@ -56,9 +55,6 @@ class LaserSpeed:
         b, m, gear = LaserSpeed.get_gearing(board, mm_per_second, raster_step != 0, gear)
 
         speed_value = LaserSpeed.get_value_from_speed(mm_per_second, b, m)
-        if (speed_value - round(speed_value)) > 0.005:
-            speed_value = ceil(speed_value)
-        speed_value = round(speed_value)
         encoded_speed = LaserSpeed.encode_value(speed_value)
 
         if raster_step != 0:
@@ -88,7 +84,7 @@ class LaserSpeed:
                 period_in_ms = 1 / frequency_kHz
             except ZeroDivisionError:
                 period_in_ms = 0
-            d_value = d_ratio * -m * period_in_ms / float(step_value)
+            d_value = d_ratio * m * period_in_ms / float(step_value)
             encoded_diagonal = LaserSpeed.encode_value(d_value)
             if gear == 0:
                 return "CV%s1%03d%sC" % (
@@ -123,6 +119,7 @@ class LaserSpeed:
         else:
             code_value = LaserSpeed.decode_value(speed_code[1:7])
             speed_code = speed_code[7:]
+        code_value = 65536 - code_value
         gear = int(speed_code[0])
         speed_code = speed_code[1:]
 
@@ -149,10 +146,10 @@ class LaserSpeed:
         """
         try:
             frequency_kHz = float(mm_per_second) / 25.4
-            period_in_ms = 1 / frequency_kHz
-            return LaserSpeed.get_value_from_period(period_in_ms, b, m)
+            period_in_ms = 1.0 / frequency_kHz
+            return 65536 - LaserSpeed.get_value_from_period(period_in_ms, b, m)
         except ZeroDivisionError:
-            return b
+            return 65536 - b
 
     @staticmethod
     def get_value_from_period(x, b, m):
@@ -183,6 +180,8 @@ class LaserSpeed:
         b1 = int(code[0:-3])
         if b1 > 16000000:
             b1 -= 16777216  # decode error negative numbers
+        if b1 > 0x7FFF:
+            b1 = b1 - 0xFFFF
         b2 = int(code[-3:])
         return (b1 << 8) + b2
 
@@ -217,13 +216,13 @@ class LaserSpeed:
         if gear is None:
             gear = LaserSpeed.get_gear_for_speed(mm_per_second, uses_raster_step)
         # A, B, B1, B2
-        b_values = [64752.0, 64752.0, 64640.0, 64512.0]
-        m = -2000.0
-        if board[0] == "M":  # any M series board
-            b_values = [60416.0, 60416.0, 59904.0, 59392.0]
-            m = -12120.0
+        b_values = [2.0 * 8 * 7 * 7, 2.0 * 8 * 7 * 7, 2.0 * 8 * 8 * 7, 2.0 * 8 * 8 * 8]
+        m = 2.0 * 1000.0
         if board == "B2":
-            m = -24240.0
+            m = 4.0 * 12 * 505
+        if board[0] == "M":  # any M series board
+            b_values = [2 * 10 * 256, 2 * 10 * 256, 2 * 11 * 256, 2 * 12 * 256]
+            m = 2.0 * 12 * 505
         if gear == 0:
             if board == "B2":
                 if uses_raster_step:
@@ -233,7 +232,7 @@ class LaserSpeed:
             elif board == "M" or board == "M1":
                 return b_values[0], m, 0
             elif board == "M2":
-                return 65528.0, m / 12, 0
+                return 2.0 * 4, m / 12, 0
         elif mm_per_second is not None:
             if board == "B2":
                 if mm_per_second < 7:
@@ -249,7 +248,7 @@ class LaserSpeed:
                     return b_values[0], m, 0
             elif board == "M2":
                 if mm_per_second < 7:
-                    return 65528.0, m / 12, 0
+                    return 2.0 * 4, m / 12, 0
         return b_values[gear - 1], m, gear
 
     @staticmethod
