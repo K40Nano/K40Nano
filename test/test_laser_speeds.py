@@ -3086,7 +3086,7 @@ class TestLaserSpeeds(unittest.TestCase):
             mm_per_second = float(values[2])
             step_amount = int(values[3])
             created_speedcode = LaserSpeed.get_code_from_speed(mm_per_second, step_amount, board)
-            print("%s %s ~= %s" % (board, created_speedcode, speed_code))
+            #print("%s %s ~= %s" % (board, created_speedcode, speed_code))
             if "G" in speed_code:
                 self.assertAlmostEqual(
                     LaserSpeed.decode_value(created_speedcode[1:7]),
@@ -3111,7 +3111,7 @@ class TestLaserSpeeds(unittest.TestCase):
             mm_per_second = float(values[2])
             step_amount = int(values[3])
             created_speedcode = LaserSpeed.get_code_from_speed(mm_per_second, step_amount, board)
-            print("%s %s ~= %s" % (board, created_speedcode, speed_code))
+            #print("%s %s ~= %s" % (board, created_speedcode, speed_code))
             if "G" in speed_code:
                 self.assertEqual(created_speedcode[7], speed_code[7])
             else:
@@ -3131,7 +3131,7 @@ class TestLaserSpeeds(unittest.TestCase):
             mm_per_second = float(values[2])
             step_amount = int(values[3])
             created_speedcode = LaserSpeed.get_code_from_speed(mm_per_second, step_amount, board)
-            print("%s %s ~= %s" % (board, created_speedcode, speed_code))
+            #print("%s %s ~= %s" % (board, created_speedcode, speed_code))
             if "G" in speed_code:
                 continue
             else:
@@ -3153,7 +3153,7 @@ class TestLaserSpeeds(unittest.TestCase):
             mm_per_second = float(values[2])
             step_amount = int(values[3])
             created_speedcode = LaserSpeed.get_code_from_speed(mm_per_second, step_amount, board)
-            print("%s %s ~= %s" % (board, created_speedcode, speed_code))
+            #print("%s %s ~= %s" % (board, created_speedcode, speed_code))
             if "G" in speed_code:
                 continue
             else:
@@ -3181,7 +3181,7 @@ class TestLaserSpeeds(unittest.TestCase):
             if "G" not in speed_code and mm_per_second > 240:
                 continue  # In these cases the given speed code is for ~19.05 mm/second.
             if "G" in speed_code and mm_per_second < 7:
-                print("ERROR, these are ambiguous.")
+                #print("ERROR, these are ambiguous.")
                 continue
 
             self.assertAlmostEqual(determined_speed, mm_per_second, delta=mm_per_second / 100)
@@ -3194,7 +3194,7 @@ class TestLaserSpeeds(unittest.TestCase):
                 speed = i / 10.0
                 speed_code = LaserSpeed.get_code_from_speed(speed, board=board)
                 determined_speed = LaserSpeed.get_speed_from_code(speed_code, board)
-                print("%s %s  %f ~= %f" % (board, speed_code, speed, determined_speed))
+                #print("%s %s  %f ~= %f" % (board, speed_code, speed, determined_speed))
                 self.assertAlmostEqual(determined_speed, speed, delta=speed / 200)
 
     def test_validate_speeds(self):
@@ -3219,7 +3219,7 @@ class TestLaserSpeeds(unittest.TestCase):
                 speed = i / 10.0
                 speed_code = LaserSpeed.get_code_from_speed(speed, board=board, gear=0)
                 determined_speed = LaserSpeed.get_speed_from_code(speed_code, board)
-                print("%s %s  %f ~= %f" % (board, speed_code, speed, determined_speed))
+                #print("%s %s  %f ~= %f" % (board, speed_code, speed, determined_speed))
                 self.assertAlmostEqual(determined_speed, speed, delta=speed / 100)
 
     def test_full_circle_gear1(self):
@@ -3230,7 +3230,7 @@ class TestLaserSpeeds(unittest.TestCase):
                 speed = i / 10.0
                 speed_code = LaserSpeed.get_code_from_speed(speed, board=board, gear=1)
                 determined_speed = LaserSpeed.get_speed_from_code(speed_code, board)
-                print("%s %s  %f ~= %f" % (board, speed_code, speed, determined_speed))
+                #print("%s %s  %f ~= %f" % (board, speed_code, speed, determined_speed))
                 self.assertAlmostEqual(determined_speed, speed, delta=speed / 200)
 
     def test_full_circle_gear2(self):
@@ -3241,7 +3241,7 @@ class TestLaserSpeeds(unittest.TestCase):
                 speed = i / 10.0
                 speed_code = LaserSpeed.get_code_from_speed(speed, board=board, gear=2)
                 determined_speed = LaserSpeed.get_speed_from_code(speed_code, board)
-                print("%s %s  %f ~= %f" % (board, speed_code, speed, determined_speed))
+                #print("%s %s  %f ~= %f" % (board, speed_code, speed, determined_speed))
                 self.assertAlmostEqual(determined_speed, speed, delta=speed / 200)
 
     def test_full_circle_gear3(self):
@@ -3263,7 +3263,7 @@ class TestLaserSpeeds(unittest.TestCase):
                 speed = i / 10.0
                 speed_code = LaserSpeed.get_code_from_speed(speed, board=board, gear=4)
                 determined_speed = LaserSpeed.get_speed_from_code(speed_code, board)
-                print("%s %s  %f ~= %f" % (board, speed_code, speed, determined_speed))
+                #print("%s %s  %f ~= %f" % (board, speed_code, speed, determined_speed))
                 self.assertAlmostEqual(determined_speed, speed, delta=speed / 200)
 
     def test_full_circle_raster(self):
@@ -3274,5 +3274,5 @@ class TestLaserSpeeds(unittest.TestCase):
                 speed = i / 10.0
                 speed_code = LaserSpeed.get_code_from_speed(speed, raster_step=2, board=board)
                 determined_speed = LaserSpeed.get_speed_from_code(speed_code, board)
-                print("%s %s  %f ~= %f" % (board, speed_code, speed, determined_speed))
+                #print("%s %s  %f ~= %f" % (board, speed_code, speed, determined_speed))
                 self.assertAlmostEqual(determined_speed, speed, delta=speed / 100)
