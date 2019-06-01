@@ -3206,7 +3206,7 @@ class TestLaserSpeeds(unittest.TestCase):
                 i_speed = speed
                 speed = LaserSpeed.validate_speed(speed, board)
                 speed_code = LaserSpeed.get_code_from_speed(speed, board=board)
-                print("%s %f %f = %s" % (board, i_speed, speed, speed_code))
+                #print("%s %f %f = %s" % (board, i_speed, speed, speed_code))
                 if speed_code[-1] == "C":
                     speed_code = speed_code[0:-1]
                 self.assertTrue(len(speed_code) == 18 or len(speed_code) == 9)
