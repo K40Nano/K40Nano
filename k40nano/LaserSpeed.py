@@ -10,9 +10,12 @@ class LaserSpeed:
     This is the standard library for converting to and from speed code information for LHYMICRO-GL.
 
     The units in the speed code have particular bands/gears which slightly modifies the equations used
-    to convert between values and speeds. The fundamental units within the speed code value are period-ticks.
+    to convert between values and speeds. The fundamental units within the speed code values are period-ticks.
     All values relate to a value in the counter to count off the number of oscillations within the
-    (typically 21.1184) Mhz crystal. The max value here is 65535, potentially with the addition of a diagonal delay.
+    (typically 22.1184) Mhz crystal. The max value here is 65535, potentially with the addition of a diagonal delay.
+
+    For the M2 board, the original Chinese Software gave a slope of 12120. However experiments with the actual
+    physical speed put this value at 17280. 22118400 hz / 17280 = 1280.
 
     The board is ultimately controlling a stepper motor and the speed a stepper motor travels is the result of
     the time between the ticks. Since the crystal oscillator is the same, the delay is controlled by the counted
@@ -71,7 +74,7 @@ class LaserSpeed:
                 raster_step
             )
 
-        if d_ratio == 0 or board == "A" or board == "B" or board == "M" or board == "BOARD-A" or board =="BOARD-B" or board == "BOARD-M":
+        if d_ratio == 0 or board == "A" or board == "B" or board == "M" or board == "BOARD-A" or board == "BOARD-B" or board == "BOARD-M":
             # We do not need the diagonal code.
             if raster_step == 0:
                 if gear == 0:
@@ -114,8 +117,9 @@ class LaserSpeed:
         if speed_code[-1] == "C":
             speed_code = speed_code[:-1]
             is_shortened = True
-            # This is an error speed.
-        if "V1677" in speed_code or "V1676" in speed_code:
+            # This is a -C suffix speed.
+        if "V1677" in speed_code or "V1676" in speed_code or \
+                "V1675" in speed_code or "V1674" in speed_code:
             # The 4th character can only be 0,1,2 except for error speeds.
             code_value = LaserSpeed.decode_value(speed_code[1:12])
             speed_code = speed_code[12:]
@@ -233,67 +237,127 @@ class LaserSpeed:
         """
         if gear is None:
             gear = LaserSpeed.get_gear_for_speed(mm_per_second, uses_raster_step)
-
-        # A, B, B1, B2, BOARD-A, BOARD-B, BOARD-B1 BOARD-B2
-        b_values = [2.0 * 8 * 7 * 7, 2.0 * 8 * 7 * 7, 2.0 * 8 * 8 * 7, 2.0 * 8 * 8 * 8]  # 784, 784, 896, 1024
-        m = 2.0 * 1000.0
-        if board == "BOARD-B2":
-            m = 22118400.0 / 640.0  # 22.1184 mhz processor, 34560
-        if board == "B2":
-            m = 24240.0
-        if board == "BOARD-M" or board == "BOARD-M1" or board == "BOARD-M2":  # any BOARD-M series board
-            b_values = [2 * 10 * 256, 2 * 10 * 256, 2 * 11 * 256, 2 * 12 * 256]
-            m = 22118400.0 / 1280.0  # 22.1184 mhz processor, 17280
-
-        if board == "M" or board == "M1" or board == "M2":  # any M series board
-            b_values = [2 * 10 * 256, 2 * 10 * 256, 2 * 11 * 256, 2 * 12 * 256]
-            m = 12120.0
-
-        if gear == 0:
-            if board == "B2" or board == "BOARD-B2":
-                if uses_raster_step:
-                    return b_values[0], m / 12, 1
-                else:
-                    return b_values[0], m / 12, 0
-            elif board == "M" or board == "M1" or board == "BOARD-M" or board == "BOARD-M1":
-                return b_values[0], m, 0
-            elif board == "M2" or board == "BOARD-M2":
-                return 2.0 * 4, m / 12, 0
-        elif mm_per_second is not None:
-            if board == "B2" or board == "BOARD-B2":
+            if board == "B2":
                 if mm_per_second < 7:
+                    # speeds below 9.509 will be in error. But the Chinese Software drew the line for suffix-C at
+                    # 7 so, this package does as well. Even though it means impossible speeds at between 7 and 9.509.
                     if uses_raster_step:
-                        return b_values[0], m / 12, 1
+                        return 784.0, 2020.0, 1
+                        # C-suffix code, pretending to be gear 1, the results are raster
+                        # speedcodes that do not actually provide full circle capabilities.
+                        # There are no permitted very slow raster speed codes. But to properly
+                        # emulate the Chinese software this is added because that is how it
+                        # works in that package.
                     else:
-                        return b_values[0], m / 12, 0
-            elif board == "M" or board == "BOARD-M":
-                if mm_per_second < 6:
-                    return b_values[0], m, 0
-            elif board == "M1" or board == "BOARD-M1":
-                if mm_per_second < 6 or (not uses_raster_step and mm_per_second < 7):
-                    return b_values[0], m, 0
-            elif board == "M2" or board == "BOARD-M2":
+                        gear = 0
+                        # Use C-suffice notation.
+            elif board == "BOARD-B2":
+                if mm_per_second < 8.75:
+                    if uses_raster_step:
+                        return 784.0, 1858.0, 1
+                    # Speeds below 8.75 will be in error.
+                    # The BOARD-XX spec is intended to fix things, so the error code range of the B2 are dismissed
+                    gear = 0  # Use C-suffix notion below this level.
+            elif board == "M2":
                 if mm_per_second < 7:
-                    return 2.0 * 4, m / 12, 0
-        return b_values[gear - 1], m, gear
+                    gear = 0  # Use C-suffix notion below this level.
+            elif board == "BOARD-M2":
+                if mm_per_second < 7:
+                    gear = 0  # Use C-suffix notion below this level.
+        A_B_B1 = [
+            (784.0, 2000.0, 0),  # A, B, B1 have no known suffix-C equations.
+            (784.0, 2000.0, 1),
+            (784.0, 2000.0, 2),
+            (896.0, 2000.0, 3),
+            (1024.0, 2000.0, 4)
+        ]
+        M_M1 = [
+            (5120.0, 12120.0, 0),  # M, M1 has no known suffix-C equations.
+            (5120.0, 12120.0, 1),
+            (5120.0, 12120.0, 2),
+            (5632.0, 12120.0, 3),
+            (6144.0, 12120.0, 4)
+        ]
+        BOARD_M_M1 = [
+                (5120.0, 11148.0, 0),  # M has no known suffix-C equations.
+                (5120.0, 11148.0, 1),
+                (5120.0, 11148.0, 2),
+                (5632.0, 11148.0, 3),
+                (6144.0, 11148.0, 4)
+                # The physical speed elements were guessed at with regard to the M2 that were tested
+            ]
+        speedcode_dict = {
+            "A": A_B_B1,
+            "B": A_B_B1,
+            "B1": A_B_B1,
+            "B2": [
+                (784.0, 2020.0, 0),
+                (784.0, 24240.0, 1),
+                (784.0, 24240.0, 2),
+                (896.0, 24240.0, 3),
+                (1024.0, 24240.0, 4)
+            ],
+            "M": M_M1,
+            "M1": M_M1,
+            "M2": [
+                (8.0, 1010.0, 0),
+                (5120.0, 12120.0, 1),
+                (5120.0, 12120.0, 2),
+                (5632.0, 12120.0, 3),
+                (6144.0, 12120.0, 4)
+            ],
+            "BOARD-A": A_B_B1,
+            # It is unknown if these values are correct with regard to physical speed.
+            "BOARD-B": A_B_B1,
+            # It is unknown if these values are correct with regard to physical speed.
+            "BOARD-B1": A_B_B1,
+            # It is unknown if these values are correct with regard to physical speed.
+            "BOARD-B2": [
+                (784.0, 1858.0, 0),
+                (784.0, 22296.0, 1),
+                (784.0, 22296.0, 2),
+                (896.0, 22296.0, 3),
+                (1024.0, 22296.0, 4)
+                # The physical speed elements were assumed to be 2x the real M2 values.
+            ],
+            "BOARD-M": BOARD_M_M1,
+            "BOARD-M1": BOARD_M_M1,
+            "BOARD-M2": [
+                (8.0, 929.0, 0),
+                (5120.0, 11148.0, 1),
+                (5120.0, 11148.0, 2),
+                (5632.0, 11148.0, 3),
+                (6144.0, 11148.0, 4)
+            ],
+        }
+        return speedcode_dict[board][gear]
 
     @staticmethod
     def validate_speed(mm_per_second, board, uses_raster_step=False):
         """
         Validate a speed.
+
+        Some boards and speeds have bugs or issues, calling this will put your speed to the nearest value
+        that does not have any issues.
+
         :param mm_per_second: speed to validate
         :param board: Nano Board Model
         :param uses_raster_step: is this speed for a raster_step
         :return: validated speed.
         """
-        if board == "A" or board == "B" or board == "B1" or board == "BOARD-A" or board == "BOARD-B" or board == "BOARD-B1":
+        if board == "A" or board == "B" or board == "B1":
+            if mm_per_second < 0.785:
+                return 0.785
+        elif board == "BOARD-A" or board == "BOARD-B" or board == "BOARD-B1":
+            # The boards manufacturer says specifically the correct slowest speed is  0.762 mm
+            # This suggests the speed for these boards is likely 3% slower.
             if mm_per_second < 0.785:
                 return 0.785
         elif board == "BOARD-B2":
-            if mm_per_second < 13.557 and (mm_per_second >= 7 or uses_raster_step):
-                return 13.557
-            if mm_per_second < 1.131:
-                return 1.131
+            if mm_per_second < 8.750 and uses_raster_step:
+                return 8.750
+            if mm_per_second < 0.730:
+                return 0.730
         elif board == "B2":
             if mm_per_second < 9.509 and (mm_per_second >= 7 or uses_raster_step):
                 return 9.509
@@ -303,18 +367,18 @@ class LaserSpeed:
             if mm_per_second < 5.096:
                 return 5.096
         elif board == "BOARD-M" or board == "BOARD-M1":
-            if mm_per_second < 7.266:
-                return 7.266
+            if mm_per_second < 4.688:
+                return 4.688
         elif board == "M2":
             if mm_per_second < 5.096 and uses_raster_step:
                 return 5.096
             if mm_per_second < 0.392:
                 return 0.392
         elif board == "BOARD-M2":
-            if mm_per_second < 7.266 and (mm_per_second >= 7 or uses_raster_step):
-                return 7.266
-            if mm_per_second < 0.559:
-                return 0.559
+            if mm_per_second < 4.688 and uses_raster_step:
+                return 4.688
+            if mm_per_second < 0.361:
+                return 0.361
         if uses_raster_step:
             if mm_per_second > 500:
                 return 500.0
