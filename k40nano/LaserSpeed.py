@@ -15,23 +15,24 @@ class LaserSpeed:
     (typically 22.1184) Mhz crystal. The max value here is 65535, potentially with the addition of a diagonal delay.
 
     For the M2 board, the original Chinese Software gave a slope of 12120. However experiments with the actual
-    physical speed put this value at 17280. 22118400 hz / 17280 = 1280.
+    physical speed put this value at 11142, which properly reflects all speeds tend to be at 91.98% of the requested
+    speed.
 
     The board is ultimately controlling a stepper motor and the speed a stepper motor travels is the result of
     the time between the ticks. Since the crystal oscillator is the same, the delay is controlled by the counted
     oscillations subticks, which gives us the time between stepper motor pulses. Most of the devices we are
     dealing with are 1000 dpi stepper motors, so, for example, to travel at 1 inch a second requires that the
-    device tick at 1 kHz. To do this it must delay 1 ms between ticks. This corresponds to a value of 43136 in
-    the M2 board. Which has an equation of 65536 - (5120 + 17280T) where T is the period requested in ms. This is
+    device tick at 1 kHz. To do this it must delay 1 ms between ticks. This corresponds to a value of 48296 in
+    the M2 board. Which has an equation of 65536 - (5120 + 12120T) where T is the period requested in ms. This is
     equal to 25.4 mm/s. If we want a 2 ms delay, which is half the speed (0.5kHz, 0.5 inches/second, 12.7 mm/s)
-    we do 65536 - (5120 + 34560) which gives us a value of 25856. This would be encoded as a 16 bit number
-    broken up into 2 ascii 3 digit strings between 0-255. 101 for the high bits and 00 for the low bits.
-    So CV01010001 where the final character "1" is the gearing equation we used.
+    we do 65536 - (5120 + 24240) which gives us a value of 36176. This would be encoded as a 16 bit number
+    broken up into 2 ascii 3 digit strings between 0-255. 141 for the high bits and 80 for the low bits.
+    So CV01410801 where the final character "1" is the gearing equation we used.
 
     The speed in mm/s is also used for determining which gearing to use and as a factor for the horizontal
     encoded value, for some boards (B2, M2). Slowing down the device down while traveling diagonal to make the
-    diagonal and orthogonal take the same amount of time (thereby cutting to the same depth). This is the same
-    period-ticks units and is simply summed with the 65535 - (b + mT) value in cases that both stepper motors
+    diagonal and orthogonal take the same amount of time (thereby cutting to the same depth). These are the same
+    period-ticks units and is simply summed with the 65536 - (b + mT) value in cases that both stepper motors
     are used.
     """
 
@@ -228,8 +229,7 @@ class LaserSpeed:
         Without the prefix, it will give the values the chinese software produced.
 
         For the M2 board this was physically checked and found to be inaccurate.
-        The physical device scaled properly with a different slope value that
-        corresponded exactly a factor of 22118400 which is the hz of the crystal used.
+        The physical device scaled properly with a different slope.
 
         This value has been established for the M2 board. It's guessed at for the B2
         board being twice the M2 board. However it is not known for A or B, B1 or B2
