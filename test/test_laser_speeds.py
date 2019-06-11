@@ -3189,7 +3189,7 @@ class TestLaserSpeeds(unittest.TestCase):
 
     def test_full_circle(self):
         boards = ["A", "B", "B1", "B2", "M", "M1", "M2",
-                  "BOARD-A", "BOARD-B", "BOARD-B1", "BOARD-B2", "BOARD-M", "BOARD-M1", "BOARD-M2"]
+                  "LASER-A", "LASER-B", "LASER-B1", "LASER-B2", "LASER-M", "LASER-M1", "LASER-M2"]
         for board in boards:
             for i in range(1, 2400, 3):
                 speed = i / 10.0
@@ -3200,7 +3200,7 @@ class TestLaserSpeeds(unittest.TestCase):
 
     def test_validate_speeds(self):
         boards = ["A", "B", "B1", "B2", "M", "M1", "M2",
-                  "BOARD-A", "BOARD-B", "BOARD-B1", "BOARD-B2", "BOARD-M", "BOARD-M1", "BOARD-M2"]
+                  "LASER-A", "LASER-B", "LASER-B1", "LASER-B2", "LASER-M", "LASER-M1", "LASER-M2"]
         for board in boards:
             for i in range(0, 25000, 7):
                 speed = i / 100.0
@@ -3216,7 +3216,7 @@ class TestLaserSpeeds(unittest.TestCase):
 
     def test_full_circle_gear0(self):
         boards = ["B2", "M", "M1", "M2",
-                  "BOARD-B2", "BOARD-M", "BOARD-M1", "BOARD-M2"]
+                  "LASER-B2", "LASER-M", "LASER-M1", "LASER-M2"]
         for board in boards:
             for i in range(1, 2400, 3):
                 speed = i / 10.0
@@ -3227,7 +3227,7 @@ class TestLaserSpeeds(unittest.TestCase):
 
     def test_full_circle_gear1(self):
         boards = ["A", "B", "B1", "B2", "M", "M1", "M2",
-                  "BOARD-A", "BOARD-B", "BOARD-B1", "BOARD-B2", "BOARD-M", "BOARD-M1", "BOARD-M2"]
+                  "LASER-A", "LASER-B", "LASER-B1", "LASER-B2", "LASER-M", "LASER-M1", "LASER-M2"]
         for board in boards:
             for i in range(1, 2400, 3):
                 speed = i / 10.0
@@ -3238,7 +3238,7 @@ class TestLaserSpeeds(unittest.TestCase):
 
     def test_full_circle_gear2(self):
         boards = ["A", "B", "B1", "B2", "M", "M1", "M2",
-                  "BOARD-A", "BOARD-B", "BOARD-B1", "BOARD-B2", "BOARD-M", "BOARD-M1", "BOARD-M2"]
+                  "LASER-A", "LASER-B", "LASER-B1", "LASER-B2", "LASER-M", "LASER-M1", "LASER-M2"]
         for board in boards:
             for i in range(1, 2400, 3):
                 speed = i / 10.0
@@ -3249,7 +3249,7 @@ class TestLaserSpeeds(unittest.TestCase):
 
     def test_full_circle_gear3(self):
         boards = ["A", "B", "B1", "B2", "M", "M1", "M2",
-                  "BOARD-A", "BOARD-B", "BOARD-B1", "BOARD-B2", "BOARD-M", "BOARD-M1", "BOARD-M2"]
+                  "LASER-A", "LASER-B", "LASER-B1", "LASER-B2", "LASER-M", "LASER-M1", "LASER-M2"]
         for board in boards:
             for i in range(1, 2400, 3):
                 speed = i / 10.0
@@ -3260,7 +3260,7 @@ class TestLaserSpeeds(unittest.TestCase):
 
     def test_full_circle_gear4(self):
         boards = ["A", "B", "B1", "B2", "M", "M1", "M2",
-                  "BOARD-A", "BOARD-B", "BOARD-B1", "BOARD-B2", "BOARD-M", "BOARD-M1", "BOARD-M2"]
+                  "LASER-A", "LASER-B", "LASER-B1", "LASER-B2", "LASER-M", "LASER-M1", "LASER-M2"]
         for board in boards:
             for i in range(1, 2400, 3):
                 speed = i / 10.0
@@ -3271,7 +3271,7 @@ class TestLaserSpeeds(unittest.TestCase):
 
     def test_full_circle_raster(self):
         boards = ["A", "B", "B1", "B2", "M", "M1", "M2",
-                  "BOARD-A", "BOARD-B", "BOARD-B1", "BOARD-B2", "BOARD-M", "BOARD-M1", "BOARD-M2"]
+                  "LASER-A", "LASER-B", "LASER-B1", "LASER-B2", "LASER-M", "LASER-M1", "LASER-M2"]
         for board in boards:
             for i in range(140, 5000, 3):
                 speed = i / 10.0
@@ -3285,7 +3285,7 @@ class TestLaserSpeeds(unittest.TestCase):
         for i in range(1, 1000):
             speed = i / 10.0
             speed_code = LaserSpeed.get_code_from_speed(speed, board="M2")
-            determined_speed = LaserSpeed.get_speed_from_code(speed_code, board="BOARD-M2")
+            determined_speed = LaserSpeed.get_speed_from_code(speed_code, board="LASER-M2")
             # print("%s M2 speed: %f  is really %f" % (speed_code, speed, determined_speed))
             determined_speed /= flaw
             self.assertAlmostEquals(speed, determined_speed, delta=speed / 100)
