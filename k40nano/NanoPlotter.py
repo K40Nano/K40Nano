@@ -21,6 +21,25 @@ STATE_CONCAT = 1
 STATE_UNFINISHED = 2
 STATE_COMPACT = 3
 
+distance_lookup = [
+    b'',
+    b'a', b'b', b'c', b'd', b'e', b'f', b'g', b'h', b'i', b'j', b'k', b'l', b'm',
+    b'n', b'o', b'p', b'q', b'r', b's', b't', b'u', b'v', b'w', b'x', b'y',
+    b'|a', b'|b', b'|c', b'|d', b'|e', b'|f', b'|g', b'|h', b'|i', b'|j', b'|k', b'|l', b'|m',
+    b'|n', b'|o', b'|p', b'|q', b'|r', b'|s', b'|t', b'|u', b'|v', b'|w', b'|x', b'|y', b'|z'
+]
+
+
+def nano_distance(v):
+    dist = b''
+    if v >= 255:
+        zs = int(v / 255)
+        v %= 255
+        dist += (b'z' * zs)
+    if v >= 52:
+        return dist + '%03d' % v
+    return dist + distance_lookup[v]
+
 
 class NanoPlotter(Plotter):
 
