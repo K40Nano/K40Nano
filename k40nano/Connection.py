@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+# MIT License.
 
 class Connection:
     def __init__(self):

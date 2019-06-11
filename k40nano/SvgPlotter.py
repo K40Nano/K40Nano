@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+# MIT License.
 
 from xml.etree.cElementTree import Element, ElementTree, SubElement
 

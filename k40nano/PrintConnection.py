@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+# MIT License.
+
 from __future__ import print_function
 
 from .Connection import Connection

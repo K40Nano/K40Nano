@@ -31,8 +31,6 @@ except:
 
 from .Connection import Connection
 
-
-
 crc_table = [
     0x00, 0x5E, 0xBC, 0xE2, 0x61, 0x3F, 0xDD, 0x83,
     0xC2, 0x9C, 0x7E, 0x20, 0xA3, 0xFD, 0x1F, 0x41,
@@ -66,10 +64,6 @@ class NanoConnection(Connection):
 
         self.MAX_ERRORS = 10
         self.MAX_TIMEOUTS = 10
-        self.TIMEOUT = 500  # Time in milliseconds
-        self.WRITE_ADDRESS = 0x2  # Write address
-        self.READ_ADDRESS = 0x82  # Read address
-        self.READ_LENGTH = 168
 
         self.HELLO = [160]
 

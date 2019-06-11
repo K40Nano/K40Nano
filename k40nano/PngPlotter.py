@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+# MIT License.
+
 from .Plotter import Plotter
 from .PngRaster import PngRaster
 

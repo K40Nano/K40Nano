@@ -3,6 +3,8 @@
 from .Connection import Connection
 
 
+# MIT License.
+
 class FileWriteConnection(Connection):
 
     def __init__(self, write_object):

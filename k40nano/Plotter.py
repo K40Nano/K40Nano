@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+# MIT License.
 
 class Plotter:
     def __init__(self, current_x=0, current_y=0):
