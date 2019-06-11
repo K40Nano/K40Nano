@@ -40,13 +40,13 @@ class LaserSpeed:
         pass
 
     @staticmethod
-    def get_speed_from_code(speed_code, board="BOARD-M2"):
+    def get_speed_from_code(speed_code, board="LASER-M2"):
         code_value, gear, step_value, diagonal, raster_step = LaserSpeed.parse_speed_code(speed_code)
         b, m, gear = LaserSpeed.get_gearing(board, gear=gear, uses_raster_step=raster_step != 0)
         return LaserSpeed.get_speed_from_value(code_value, b, m)
 
     @staticmethod
-    def get_code_from_speed(mm_per_second, raster_step=0, board="BOARD-M2", d_ratio=0.261199033289, gear=None):
+    def get_code_from_speed(mm_per_second, raster_step=0, board="LASER-M2", d_ratio=0.261199033289, gear=None):
         """
         Get a speedcode from a given speed. The raster step appends the 'G' value and uses speed ranges.
         The d_ratio uses the default/auto ratio. The gearing is optional and forces the speedcode to work
@@ -75,7 +75,7 @@ class LaserSpeed:
                 raster_step
             )
 
-        if d_ratio == 0 or board == "A" or board == "B" or board == "M" or board == "BOARD-A" or board == "BOARD-B" or board == "BOARD-M":
+        if d_ratio == 0 or board == "A" or board == "B" or board == "M" or board == "LASER-A" or board == "LASER-B" or board == "LASER-M":
             # We do not need the diagonal code.
             if raster_step == 0:
                 if gear == 0:
@@ -224,7 +224,7 @@ class LaserSpeed:
     @staticmethod
     def get_gearing(board, mm_per_second=None, uses_raster_step=False, gear=None):
         """The gearing equations are divided into two sets distinct groups.
-        The BOARD-[ABM][12]? values and the [ABM][12]? values. If the 'BOARD'
+        The LASER-[ABM][12]? values and the [ABM][12]? values. If the 'BOARD'
         prefix is specified it will give the correct value to create a given speed.
         Without the prefix, it will give the values the chinese software produced.
 
@@ -233,7 +233,7 @@ class LaserSpeed:
 
         This value has been established for the M2 board. It's guessed at for the B2
         board being twice the M2 board. However it is not known for A or B, B1 or B2
-        In this case BOARD-X returns the same value as X.
+        In this case LASER-X returns the same value as X.
         """
         if gear is None:
             gear = LaserSpeed.get_gear_for_speed(mm_per_second, uses_raster_step)
@@ -251,17 +251,17 @@ class LaserSpeed:
                     else:
                         gear = 0
                         # Use C-suffice notation.
-            elif board == "BOARD-B2":
+            elif board == "LASER-B2":
                 if mm_per_second < 8.75:
                     if uses_raster_step:
                         return 784.0, 1858.0, 1
                     # Speeds below 8.75 will be in error.
-                    # The BOARD-XX spec is intended to fix things, so the error code range of the B2 are dismissed
+                    # The LASER-XX spec is intended to fix things, so the error code range of the B2 are dismissed
                     gear = 0  # Use C-suffix notion below this level.
             elif board == "M2":
                 if mm_per_second < 7:
                     gear = 0  # Use C-suffix notion below this level.
-            elif board == "BOARD-M2":
+            elif board == "LASER-M2":
                 if mm_per_second < 7:
                     gear = 0  # Use C-suffix notion below this level.
         A_B_B1 = [
@@ -306,13 +306,13 @@ class LaserSpeed:
                 (5632.0, 12120.0, 3),
                 (6144.0, 12120.0, 4)
             ],
-            "BOARD-A": A_B_B1,
+            "LASER-A": A_B_B1,
             # It is unknown if these values are correct with regard to physical speed.
-            "BOARD-B": A_B_B1,
+            "LASER-B": A_B_B1,
             # It is unknown if these values are correct with regard to physical speed.
-            "BOARD-B1": A_B_B1,
+            "LASER-B1": A_B_B1,
             # It is unknown if these values are correct with regard to physical speed.
-            "BOARD-B2": [
+            "LASER-B2": [
                 (784.0, 1858.0, 0),
                 (784.0, 22296.0, 1),
                 (784.0, 22296.0, 2),
@@ -320,9 +320,9 @@ class LaserSpeed:
                 (1024.0, 22296.0, 4)
                 # The physical speed elements were assumed to be 2x the real M2 values.
             ],
-            "BOARD-M": BOARD_M_M1,
-            "BOARD-M1": BOARD_M_M1,
-            "BOARD-M2": [
+            "LASER-M": BOARD_M_M1,
+            "LASER-M1": BOARD_M_M1,
+            "LASER-M2": [
                 (8.0, 929.0, 0),
                 (5120.0, 11148.0, 1),
                 (5120.0, 11148.0, 2),
@@ -348,12 +348,12 @@ class LaserSpeed:
         if board == "A" or board == "B" or board == "B1":
             if mm_per_second < 0.785:
                 return 0.785
-        elif board == "BOARD-A" or board == "BOARD-B" or board == "BOARD-B1":
+        elif board == "LASER-A" or board == "LASER-B" or board == "LASER-B1":
             # The boards manufacturer says specifically the correct slowest speed is  0.762 mm
             # This suggests the speed for these boards is likely 3% slower.
             if mm_per_second < 0.785:
                 return 0.785
-        elif board == "BOARD-B2":
+        elif board == "LASER-B2":
             if mm_per_second < 8.750 and uses_raster_step:
                 return 8.750
             if mm_per_second < 0.730:
@@ -366,7 +366,7 @@ class LaserSpeed:
         elif board == "M" or board == "M1":
             if mm_per_second < 5.096:
                 return 5.096
-        elif board == "BOARD-M" or board == "BOARD-M1":
+        elif board == "LASER-M" or board == "LASER-M1":
             if mm_per_second < 4.688:
                 return 4.688
         elif board == "M2":
@@ -374,7 +374,7 @@ class LaserSpeed:
                 return 5.096
             if mm_per_second < 0.392:
                 return 0.392
-        elif board == "BOARD-M2":
+        elif board == "LASER-M2":
             if mm_per_second < 4.688 and uses_raster_step:
                 return 4.688
             if mm_per_second < 0.361:

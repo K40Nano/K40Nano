@@ -121,3 +121,8 @@ Documentation
 See Wiki for documentation of the LHYMICRO-GL format.
 
 https://github.com/K40Nano/K40Nano/wiki
+
+
+Licensing
+---
+The project as a whole is licensed as GPL 2.0. While I prefer MIT and I have heavily overhauled the code. I can only give a different license to the elements I wrote from scratch. The core elements of NanoUsb, the packet resending methods NanoConnection, and LaserDistance are derived from K40Whisperer.
