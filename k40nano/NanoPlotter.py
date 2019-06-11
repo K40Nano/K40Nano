@@ -2,7 +2,6 @@
 
 # MIT license
 
-from .LaserDistance import encode_distance
 from .LaserSpeed import LaserSpeed
 from .NanoConnection import NanoConnection
 from .Plotter import Plotter
@@ -313,7 +312,7 @@ class NanoPlotter(Plotter):
         self.current_y += dy
         self.check_bounds()
         self.connection.write(COMMAND_ANGLE)
-        self.connection.write(encode_distance(abs(dy)))  # dx == dy
+        self.connection.write(nano_distance(abs(dy)))  # dx == dy
 
     def declare_directions(self):
         if self.is_top:
@@ -337,7 +336,7 @@ class NanoPlotter(Plotter):
         self.is_left = False
         self.connection.write(COMMAND_RIGHT)
         if dx != 0:
-            self.connection.write(encode_distance(abs(dx)))
+            self.connection.write(nano_distance(abs(dx)))
             self.check_bounds()
 
     def move_left(self, dx=0):
@@ -352,7 +351,7 @@ class NanoPlotter(Plotter):
         self.is_left = True
         self.connection.write(COMMAND_LEFT)
         if dx != 0:
-            self.connection.write(encode_distance(abs(dx)))
+            self.connection.write(nano_distance(abs(dx)))
             self.check_bounds()
 
     def move_bottom(self, dy=0):
@@ -367,7 +366,7 @@ class NanoPlotter(Plotter):
         self.is_top = False
         self.connection.write(COMMAND_BOTTOM)
         if dy != 0:
-            self.connection.write(encode_distance(abs(dy)))
+            self.connection.write(nano_distance(abs(dy)))
             self.check_bounds()
 
     def move_top(self, dy=0):
@@ -382,7 +381,7 @@ class NanoPlotter(Plotter):
             self.is_on = False
         self.connection.write(COMMAND_TOP)
         if dy != 0:
-            self.connection.write(encode_distance(abs(dy)))
+            self.connection.write(nano_distance(abs(dy)))
             self.check_bounds()
 
     def move_line(self, dx, dy):
