@@ -36,7 +36,7 @@ def nano_distance(v):
         v %= 255
         dist += (b'z' * zs)
     if v >= 52:
-        return dist + '%03d' % v
+        return dist + b'%03d' % v
     return dist + distance_lookup[v]
 
 
